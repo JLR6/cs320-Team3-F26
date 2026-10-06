@@ -6,14 +6,14 @@ A LeetCode inspired social media platform. Users can share completed problems, i
 
 ```text
 cs320-Team3-F26/
-├── backend/     # Next.js + React + Typescript
-├── frontend/    # NestJS + Node.js + TypeScript + Supabase
+├── backend/     # NestJS + Node.js + TypeScript + Supabase
+├── frontend/    # Next.js + React + TypeScript
 └── README.md
 ```
 
 ## Setup
 
-Frontend and backend setup instructions soon..
+Frontend and backend setup instructions added soon.
 
 ## Tech Stack
 
