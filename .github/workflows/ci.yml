@@ -1,40 +1,210 @@
-# This is a basic workflow from GitHub to help you get started with Actions
-# It is needed so that we have at least one check to require so that we can enable
-# the "Require branches to be up to date before merging" setting.
-
-# Add this file to your repository as `.github/workflows/ci.yml`
-
 name: CI
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
   push:
-    branches: [ "main" ]
+    branches: [main, dev]
   pull_request:
-    branches: [ "main" ]
-
-  # Allows you to run this workflow manually from the Actions tab
+    branches: [main, dev]
   workflow_dispatch:
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  changes:
+    name: Detect changes
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
+    timeout-minutes: 5
+    outputs:
+      backend: ${{ steps.changes.outputs.backend }}
+      frontend: ${{ steps.changes.outputs.frontend }}
+      environment: ${{ steps.changes.outputs.environment }}
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Test change detection
+        run: python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+      - name: Detect affected applications
+        id: changes
+        run: python3 scripts/ci/changes.py
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+  backend:
+    name: Backend checks
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm audit --audit-level=high
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run build
+      - run: npm run test:coverage
+      - name: Upload backend coverage
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: backend-coverage
+          path: backend/coverage/
+          retention-days: 7
+          if-no-files-found: warn
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+  frontend:
+    name: Frontend checks
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm audit --audit-level=high
+      - run: pnpm run format:check
+      - run: pnpm run lint
+      - run: pnpm run typecheck
+      - run: pnpm run build
+      - run: pnpm run test:coverage
+      - name: Upload frontend coverage
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: frontend-coverage
+          path: frontend/coverage/
+          retention-days: 7
+          if-no-files-found: warn
+
+  environment:
+    name: Integration and E2E
+    needs: [changes, backend, frontend]
+    if: >-
+      always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.environment == 'true' &&
+      (needs.backend.result == 'success' || needs.backend.result == 'skipped') &&
+      (needs.frontend.result == 'success' || needs.frontend.result == 'skipped')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: 'true'
+      PORT: '3001'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          package_json_file: frontend/package.json
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      # Both apps are needed to exercise the complete system even if only one changed.
+      - run: npm ci --prefix backend
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - name: Start isolated Supabase
+        id: supabase
+        working-directory: backend
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
+          npx --no-install supabase start > "$RUNNER_TEMP/supabase-start.log"
+          rm "$RUNNER_TEMP/supabase-start.log"
+      - name: Apply local migrations
+        working-directory: backend
+        run: npx --no-install supabase db reset --local
+      - name: Configure local test credentials
+        run: |
+          cd backend
+          npx --no-install supabase status -o json > "$RUNNER_TEMP/supabase-status.json"
+          cd ..
+          python3 scripts/ci/export-supabase-env.py "$RUNNER_TEMP/supabase-status.json"
+          rm "$RUNNER_TEMP/supabase-status.json"
+      - name: Backend integration tests
+        run: npm --prefix backend run test:integration
+      - run: npm --prefix backend run build
+      - run: pnpm --dir frontend run build
+      - name: Install browsers and system dependencies
+        working-directory: frontend
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Browser end-to-end tests
+        run: pnpm --dir frontend run test:e2e
+      - name: Capture local service logs
+        if: failure()
+        run: |
+          mkdir -p test-results/services
+          for container in $(docker ps -a --filter 'name=supabase_' --format '{{.Names}}'); do
+            docker logs "$container" > "test-results/services/$container.log" 2>&1 || true
+          done
+      - name: Upload test diagnostics
+        if: always()
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        with:
+          name: integration-e2e-diagnostics
+          path: |
+            frontend/playwright-report/
+            frontend/test-results/
+            test-results/
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Stop isolated Supabase
+        if: always() && steps.supabase.outcome != 'skipped'
+        working-directory: backend
+        run: npx --no-install supabase stop --no-backup
+
+  gate:
+    name: CI passed
+    needs: [changes, backend, frontend, environment]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      NEEDS_JSON: ${{ toJSON(needs) }}
+    steps:
+      - name: Require every applicable check to succeed
+        run: |
+          python3 - <<'PYTHON'
+          import json, os, sys
+          jobs = json.loads(os.environ['NEEDS_JSON'])
+          if jobs['changes']['result'] != 'success':
+              sys.exit('Change detection did not succeed')
+          flags = jobs['changes']['outputs']
+          for job in ('backend', 'frontend', 'environment'):
+              expected = 'success' if flags.get(job) == 'true' else 'skipped'
+              if flags.get(job) not in ('true', 'false'):
+                  sys.exit(f'Missing change detection output: {job}')
+              if jobs[job]['result'] != expected:
+                  sys.exit(f'{job}: expected {expected}, got {jobs[job]["result"]}')
+          print('All applicable CI checks passed')
+          PYTHON
