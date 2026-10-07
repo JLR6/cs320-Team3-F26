@@ -5,16 +5,19 @@ build, format, lint, type-check, and test it in CI. The page is blank; applicati
 components, styling, data fetching, and feature dependencies are left to the
 frontend developers.
 
-Use Node.js 24 and pnpm 10.34.6:
+The frontend uses Node.js 24 and pnpm 10.34.6. Select Node.js 24 with your version
+manager (`nvm use` if you use nvm), then run these commands from the repository root:
 
 ```sh
-npm install --global pnpm@10.34.6
-pnpm install --frozen-lockfile
-pnpm format:check
-pnpm lint
-pnpm typecheck
-pnpm build
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend install --frozen-lockfile
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run format:check
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run lint
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run typecheck
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run build
 ```
+
+These commands use pinned pnpm through `npm exec`, without relying on a global
+Corepack installation.
 
 Commit `pnpm-lock.yaml` with dependency changes. Add unit tests matching
 `src/**/*.test.{ts,tsx}` and browser tests under `test/e2e`.
