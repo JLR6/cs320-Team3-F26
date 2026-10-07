@@ -67,29 +67,41 @@ browser reports/traces/screenshots, and stops Supabase even after failures.
 
 ## Local commands
 
-Use Node.js 24 (`nvm use`), then from the repository root:
+Select Node.js 24 with your version manager (`nvm use` if you use nvm), then run
+the initial checks from the repository root:
 
 ```sh
-npm install --global pnpm@10.34.6
 npm ci --prefix backend
-pnpm --dir frontend install --frozen-lockfile
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend install --frozen-lockfile
 python3 -m unittest discover -s scripts/ci -p 'test_*.py'
+
 npm --prefix backend run lint
 npm --prefix backend run typecheck
 npm --prefix backend run build
-pnpm --dir frontend run format:check
-pnpm --dir frontend run lint
-pnpm --dir frontend run typecheck
-pnpm --dir frontend run build
+
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run format:check
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run lint
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run typecheck
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run build
+
 npm --prefix backend audit --audit-level=high
-pnpm --dir frontend audit --audit-level=high
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend audit --audit-level=high
 ```
+
+These commands install locked dependencies, run the CI-helper tests, lint,
+type-check, build both apps, check frontend formatting, and audit dependencies.
+They do not run the unimplemented application test suites.
+
+Frontend commands use the pinned pnpm version through `npm exec`, avoiding an
+outdated global Corepack signing-key cache. The first run needs registry access;
+npm caches the downloaded tool. GitHub Actions uses `pnpm/action-setup` and
+`actions/setup-node`, so its jobs do not rely on your local Corepack installation.
 
 After you implement test suites:
 
 ```sh
 npm --prefix backend run test:coverage
-pnpm --dir frontend run test:coverage
+npm exec --yes --package=pnpm@10.34.6 -- pnpm --dir frontend run test:coverage
 ```
 
 For integration/E2E tests, start Docker and this project's disposable Supabase:
@@ -112,8 +124,8 @@ With suites implemented and both apps built:
 ```sh
 npm --prefix backend run test:integration
 cd frontend
-pnpm exec playwright install chromium firefox webkit
-PORT=3001 CI=true pnpm run test:e2e
+npm exec --yes --package=pnpm@10.34.6 -- pnpm exec playwright install chromium firefox webkit
+PORT=3001 CI=true npm exec --yes --package=pnpm@10.34.6 -- pnpm run test:e2e
 cd ../backend
 npx --no-install supabase stop --no-backup
 ```
