@@ -13,7 +13,14 @@ cs320-Team3-F26/
 
 ## Setup
 
-Frontend and backend setup instructions added soon.
+Build and test tooling is configured for GitHub Actions. Application source is
+minimal boilerplate for the frontend and backend developers to implement.
+
+See [CI setup](docs/ci.md) for install/build commands, test suite conventions,
+the disposable integration environment, and required GitHub checks. CI runs on
+PRs and pushes to both `main` and `dev`, including merges into `dev`.
+
+Application tests have not been implemented yet; empty suites intentionally fail.
 
 ## Tech Stack
 
