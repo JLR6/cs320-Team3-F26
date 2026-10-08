@@ -47,6 +47,19 @@ winget install -e --id Docker.DockerDesktop
 ```
 
 
+### Backend
+Scoop is needed to install the Supabase CLI
+
+Run the following for the Scoop and Supabase CLI Download inside Windows Powershell
+```
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+```
+
+
 ## Tech Stack
 
 ### Frontend
