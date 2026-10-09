@@ -8,8 +8,8 @@ ALTER TABLE public.post_comments ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.comment_likes ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Anyone can view profiles" ON public.users FOR SELECT USING (true);
-CREATE POLICY "Users can update their own profile" ON public.users FOR UPDATE USING (id = auth.uid());
-CREATE POLICY "Users can delete their own profile" ON public.users FOR DELETE USING (id = auth.uid());
+CREATE POLICY "Users can update their own profile" ON public.users FOR UPDATE USING (user_id = auth.uid());
+CREATE POLICY "Users can delete their own profile" ON public.users FOR DELETE USING (user_id = auth.uid());
 
 -- Problems should be populated by the backend when a post is created, users only need to fetch them
 CREATE POLICY "Anyone can view problems" ON public.problems FOR SELECT USING (true);
