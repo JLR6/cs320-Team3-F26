@@ -1,17 +1,16 @@
 # Task Title
-
 Setup & Signup Page
 
 ## Main takeaways (You must write this section manually and without AI assistance. The purpose is for you to reflect on what you did and practice articulating that for others.)
 
-- Setup and scaffolded Next.js project with stack's ui components
-  - is done with CLI and npm/pnpm
-- Next.js has very intuitive routing with folders
-  - putting auth into a next.js group
-- Used zod to validate the fields and I used AI to generate the necessary limits on the fields we have
-  - at the moment, no requirements besides length for password
-- generated components with correct alignments and fields for the signup form
-  - tried to keep it leetcode theme as much as possible but will probably end up using a global theme that will be maintained for fonts and colors
+* Setup and scaffolded Next.js project with stack's ui components
+  * is done with CLI and npm/pnpm
+* Next.js has very intuitive routing with folders
+  * putting auth into a next.js group
+* Used zod to validate the fields and I used AI to generate the necessary limits on the fields we have
+  * at the moment, no requirements besides length for password
+* generated components with correct alignments and fields for the signup form
+  * tried to keep it leetcode theme as much as possible but will probably end up using a global theme that will be maintained for fonts and colors
 
 ## Resource Usage
 
