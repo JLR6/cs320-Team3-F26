@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   InternalServerErrorException,
   NotFoundException,
@@ -26,7 +28,7 @@ describe('PostsService', () => {
   });
 
   it('returns posts using the requesting user token and limits results to 50', async () => {
-    const posts = [{ id: 'post-1', content: 'Completed a coding problem' }];
+    const posts = [{ post_id: 'post-1', post_description: 'Completed a coding problem' }];
     fetchMock.mockResolvedValueOnce(Response.json(posts));
 
     await expect(service.findAll('user-access-token')).resolves.toEqual(posts);
@@ -66,52 +68,74 @@ describe('PostsService', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it('does not insert a post if Supabase cannot verify the user', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ message: 'Invalid token' }, { status: 401 }));
+    await expect(service.create('invalid-token', { problem_number: 1 }))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it('does not insert a post when the auth response has no user', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({}));
+    await expect(service.create('user-token', { problem_number: 1 }))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   const post = {
-    id: '11111111-1111-4111-8111-111111111111',
+    post_id: '11111111-1111-4111-8111-111111111111',
     user_id: '22222222-2222-4222-8222-222222222222',
-    content: 'A coding problem',
+    problem_number: 1,
+    post_description: 'A coding problem',
     created_at: '2026-10-14T00:00:00Z',
   };
 
   it('fetches one post by its ID', async () => {
     fetchMock.mockResolvedValueOnce(Response.json([post]));
-    await expect(service.findOne('user-token', post.id)).resolves.toEqual(post);
+    await expect(service.findOne('user-token', post.post_id)).resolves.toEqual(post);
     const [input] = fetchMock.mock.calls[0];
-    expect(new URL(String(input)).searchParams.get('id')).toBe(`eq.${post.id}`);
+    expect(new URL(String(input)).searchParams.get('post_id')).toBe(`eq.${post.post_id}`);
   });
 
   it('creates a post without accepting an author from the caller', async () => {
+    mockUser();
     fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }));
-    await expect(service.create('user-token', { content: post.content })).resolves.toEqual(post);
-    const [, options] = fetchMock.mock.calls[0];
+    await expect(service.create('user-token', { problem_number: 1, post_description: post.post_description })).resolves.toEqual(post);
+    const [, options] = fetchMock.mock.calls[1];
     expect(options?.method).toBe('POST');
-    expect(JSON.parse(String(options?.body))).toEqual({ content: post.content });
+    expect(JSON.parse(String(options?.body))).toEqual({ problem_number: 1, post_description: post.post_description, user_id: post.user_id });
     expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
   });
 
   it('updates only the requested post content', async () => {
-    fetchMock.mockResolvedValueOnce(Response.json({ ...post, content: 'Updated' }));
-    await expect(service.update('user-token', post.id, { content: 'Updated' }))
-      .resolves.toEqual({ ...post, content: 'Updated' });
+    fetchMock.mockResolvedValueOnce(Response.json({ ...post, post_description: 'Updated' }));
+    await expect(service.update('user-token', post.post_id, { post_description: 'Updated' }))
+      .resolves.toEqual({ ...post, post_description: 'Updated' });
     const [input, options] = fetchMock.mock.calls[0];
     expect(options?.method).toBe('PATCH');
-    expect(new URL(String(input)).searchParams.get('id')).toBe(`eq.${post.id}`);
-    expect(JSON.parse(String(options?.body))).toEqual({ content: 'Updated' });
+    expect(new URL(String(input)).searchParams.get('post_id')).toBe(`eq.${post.post_id}`);
+    expect(JSON.parse(String(options?.body))).toEqual({
+      post_description: 'Updated', updated_at: expect.any(String),
+    });
   });
 
   it('deletes only the requested post', async () => {
-    fetchMock.mockResolvedValueOnce(Response.json({ id: post.id }));
-    await expect(service.remove('user-token', post.id)).resolves.toBeUndefined();
+    fetchMock.mockResolvedValueOnce(Response.json({ post_id: post.post_id }));
+    await expect(service.remove('user-token', post.post_id)).resolves.toBeUndefined();
     const [input, options] = fetchMock.mock.calls[0];
     expect(options?.method).toBe('DELETE');
-    expect(new URL(String(input)).searchParams.get('id')).toBe(`eq.${post.id}`);
+    expect(new URL(String(input)).searchParams.get('post_id')).toBe(`eq.${post.post_id}`);
   });
+
+  function mockUser() {
+    fetchMock.mockResolvedValueOnce(Response.json({ id: post.user_id }));
+  }
 
   const operations = ['findOne', 'create', 'update', 'remove'] as const;
   function perform(operation: typeof operations[number]) {
-    if (operation === 'create') return service.create('user-token', { content: 'New' });
-    if (operation === 'update') return service.update('user-token', post.id, { content: 'New' });
-    return service[operation]('user-token', post.id);
+    if (operation === 'create') return service.create('user-token', { problem_number: 1 });
+    if (operation === 'update') return service.update('user-token', post.post_id, { post_description: 'New' });
+    return service[operation]('user-token', post.post_id);
   }
 
   it.each(['findOne', 'update', 'remove'] as const)('%s returns 404 for missing or inaccessible posts', async operation => {
@@ -125,6 +149,7 @@ describe('PostsService', () => {
       [403, ForbiddenException],
       [500, InternalServerErrorException],
     ] as const)('maps status %s without exposing database details', async (status, exception) => {
+      if (operation === 'create') mockUser();
       fetchMock.mockResolvedValueOnce(Response.json(
         { message: 'Private database details', code: 'TEST_ERROR' }, { status },
       ));
@@ -132,5 +157,16 @@ describe('PostsService', () => {
       await expect(result).rejects.toBeInstanceOf(exception);
       await expect(result).rejects.not.toThrow('Private database details');
     });
+  });
+
+  it.each(['create', 'update'] as const)('%s rejects nonexistent problems with 400', async operation => {
+    if (operation === 'create') mockUser();
+    fetchMock.mockResolvedValueOnce(Response.json({ code: '23503', message: 'Foreign key violation' }, { status: 409 }));
+    await expect(perform(operation)).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('returns 409 when likes or comments prevent deletion', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json({ code: '23503', message: 'Foreign key violation' }, { status: 409 }));
+    await expect(service.remove('user-token', post.post_id)).rejects.toBeInstanceOf(ConflictException);
   });
 });

@@ -13,7 +13,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
-import { parsePostContent } from './dto/post-content.dto';
+import { parseCreatePost, parseUpdatePost } from './dto/post-content.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -38,7 +38,7 @@ export class PostsController {
     @Headers('authorization') authorization?: string,
   ) {
     const token = this.accessToken(authorization);
-    return this.postsService.create(token, parsePostContent(body));
+    return this.postsService.create(token, parseCreatePost(body));
   }
 
   @Patch(':id')
@@ -48,7 +48,7 @@ export class PostsController {
     @Headers('authorization') authorization?: string,
   ) {
     const token = this.accessToken(authorization);
-    return this.postsService.update(token, id, parsePostContent(body));
+    return this.postsService.update(token, id, parseUpdatePost(body));
   }
 
   @Delete(':id')
