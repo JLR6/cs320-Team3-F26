@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Set to 'false' once unit, integration, and E2E suites are implemented.
+  CI_BOOTSTRAP: 'true'
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
@@ -23,7 +27,22 @@ jobs:
       backend: ${{ steps.changes.outputs.backend }}
       frontend: ${{ steps.changes.outputs.frontend }}
       environment: ${{ steps.changes.outputs.environment }}
+      bootstrap: ${{ steps.mode.outputs.bootstrap }}
     steps:
+      - name: Report test enforcement mode
+        id: mode
+        run: |
+          case "$CI_BOOTSTRAP" in
+            true|false) echo "bootstrap=$CI_BOOTSTRAP" >> "$GITHUB_OUTPUT" ;;
+            *) echo 'CI_BOOTSTRAP must be true or false' >&2; exit 1 ;;
+          esac
+          if [ "$CI_BOOTSTRAP" = 'true' ]; then
+            echo '::notice::Bootstrap mode: application coverage, integration, and E2E tests are skipped.'
+            echo '### Bootstrap mode' >> "$GITHUB_STEP_SUMMARY"
+            echo 'Application tests and coverage are skipped. Dependency audits, linting, type checks, formatting, builds, and CI-helper tests remain required.' >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo '### Full test enforcement enabled' >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           fetch-depth: 0
@@ -58,8 +77,9 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: npm run test:coverage
+        if: env.CI_BOOTSTRAP == 'false'
       - name: Upload backend coverage
-        if: always()
+        if: always() && env.CI_BOOTSTRAP == 'false'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: backend-coverage
@@ -97,8 +117,9 @@ jobs:
       - run: pnpm run typecheck
       - run: pnpm run build
       - run: pnpm run test:coverage
+        if: env.CI_BOOTSTRAP == 'false'
       - name: Upload frontend coverage
-        if: always()
+        if: always() && env.CI_BOOTSTRAP == 'false'
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: frontend-coverage
@@ -111,6 +132,7 @@ jobs:
     needs: [changes, backend, frontend]
     if: >-
       always() && needs.changes.result == 'success' &&
+      needs.changes.outputs.bootstrap == 'false' &&
       needs.changes.outputs.environment == 'true' &&
       (needs.backend.result == 'success' || needs.backend.result == 'skipped') &&
       (needs.frontend.result == 'success' || needs.frontend.result == 'skipped')
@@ -200,10 +222,15 @@ jobs:
           if jobs['changes']['result'] != 'success':
               sys.exit('Change detection did not succeed')
           flags = jobs['changes']['outputs']
+          if flags.get('bootstrap') not in ('true', 'false'):
+              sys.exit('Missing or invalid bootstrap mode output')
           for job in ('backend', 'frontend', 'environment'):
-              expected = 'success' if flags.get(job) == 'true' else 'skipped'
               if flags.get(job) not in ('true', 'false'):
                   sys.exit(f'Missing change detection output: {job}')
+              required = flags[job] == 'true'
+              if job == 'environment' and flags['bootstrap'] == 'true':
+                  required = False
+              expected = 'success' if required else 'skipped'
               if jobs[job]['result'] != expected:
                   sys.exit(f'{job}: expected {expected}, got {jobs[job]["result"]}')
           print('All applicable CI checks passed')

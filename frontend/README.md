@@ -23,7 +23,10 @@ Commit `pnpm-lock.yaml` with dependency changes. Add unit tests matching
 `src/**/*.test.{ts,tsx}` and browser tests under `test/e2e`.
 `pnpm test:coverage` requires at least 90% in all four coverage metrics;
 `pnpm test:e2e` runs Chromium, Firefox, and WebKit. Both currently fail because
-application test suites have not been implemented.
+application test suites have not been implemented. GitHub Actions currently skips
+application tests in bootstrap mode while keeping formatting, linting, type checks,
+builds, and dependency audits required. See the CI setup guide to enable full test
+enforcement.
 
 See [CI setup](../docs/ci.md) for backend/Supabase test environment instructions,
 test commands, and branch protection requirements.

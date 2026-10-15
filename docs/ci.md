@@ -5,12 +5,28 @@ GitHub Actions runs for PRs targeting `main` or `dev`, pushes to either branch
 
 ## Current state
 
-**Unit, integration, and E2E suites still need to be implemented.** Empty suites
-fail; they are not treated as passing coverage. An affected application therefore
-cannot pass the full pipeline until its developers add meaningful tests. The
-integration/E2E job waits for applicable component checks to pass first.
+**Bootstrap mode is enabled while application test suites are being implemented.**
+Dependency installation, audits, linting, type checks, builds, frontend formatting,
+and CI-helper tests remain required. Application unit coverage and the entire
+integration/E2E environment job are explicitly skipped. The workflow reports this
+in its logs and job summary; skipped tests do not represent passing coverage.
+
+To enable full test enforcement, change the workflow-level `CI_BOOTSTRAP` value
+from `'true'` to `'false'` in `.github/workflows/ci.yml` and commit the change.
+Do this once both applications have meaningful unit, integration, and E2E suites
+and satisfy the 90% coverage thresholds. Empty suites still fail when run locally
+or with full enforcement enabled. The integration/E2E job then waits for applicable
+component checks to pass first.
+
+Keep `CI passed` as the required branch check. It accepts the intentionally skipped
+environment job in bootstrap mode but still rejects failed or unexpectedly skipped
+application checks. If other branch rules separately require the integration/E2E
+job, remove that requirement during bootstrap and use `CI passed` instead.
 
 ## Checks
+
+The table describes full enforcement. In bootstrap mode, component jobs still
+run their non-test checks as shown, but coverage and integration/E2E are skipped.
 
 | Changes | Backend | Frontend | Integration + E2E |
 | --- | --- | --- | --- |
@@ -28,7 +44,8 @@ Both apps use Node.js 24 from `.nvmrc`. Backend installs use `npm ci` with
 `backend/package-lock.json`. Frontend installs use pnpm 10.34.6, pinned through
 `packageManager`, with `pnpm install --frozen-lockfile` and `frontend/pnpm-lock.yaml`.
 The workflow audits all dependencies at high/critical severity, lints, type-checks,
-builds, and runs unit coverage. Frontend formatting is also checked with Prettier.
+builds, and runs unit coverage when bootstrap mode is disabled. Frontend formatting
+is also checked with Prettier.
 
 Each application's Vitest configuration requires at least 90% lines, statements,
 functions, and branches, including unimported source files. Tests and declarations
