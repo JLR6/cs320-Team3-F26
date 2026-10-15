@@ -1,11 +1,18 @@
 # Setup Supabase Authentication for Login Page
 
 ## Main Takeaways
+<<<<<<< HEAD
 
 - Success handling is optional but a good fallback and extra check that model missed
 - Next time specify what files should have implemented code and the constraints (e.g. in this section app.tsx (renamed login.tsx) to have code modified)
 - Successful by specifying using next.js framework
 - Not only have states for React but updating them using async programming
+=======
+* Success handling is optional but a good fallback and extra check that model missed
+* Next time specify what files should have implemented code and the constraints (e.g. in this section app.tsx (renamed login.tsx) to have code modified) 
+* Successful by specifying using next.js framework
+* Not only have states for React but updating them using async programming
+>>>>>>> cda52fd (Add Supabase login and tests)
 
 ## Resource Usage
 
