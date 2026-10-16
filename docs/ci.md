@@ -18,10 +18,12 @@ and satisfy the 90% coverage thresholds. Empty suites still fail when run locall
 or with full enforcement enabled. The integration/E2E job then waits for applicable
 component checks to pass first.
 
-Keep `CI passed` as the required branch check. It accepts the intentionally skipped
+The final gate reports a check named `build` to match the existing repository
+ruleset. It accepts the intentionally skipped
 environment job in bootstrap mode but still rejects failed or unexpectedly skipped
 application checks. If other branch rules separately require the integration/E2E
-job, remove that requirement during bootstrap and use `CI passed` instead.
+job, a repository admin must adjust that requirement during bootstrap; `build`
+already validates every applicable job.
 
 ## Checks
 
