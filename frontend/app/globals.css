@@ -1,0 +1,92 @@
+@import "tailwindcss";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --background: #ffffff;
+  --foreground: #262626;
+  --card: #ffffff;
+  --card-foreground: #262626;
+  --popover: #ffffff;
+  --popover-foreground: #262626;
+  --primary: #ffa116;            /* LeetCode orange */
+  --primary-foreground: #1a1a1a;
+  --secondary: #f2f2f2;
+  --secondary-foreground: #262626;
+  --muted: #f2f2f2;
+  --muted-foreground: #6b6b6b;
+  --accent: #fff3dc;
+  --accent-foreground: #262626;
+  --destructive: #ef4743;
+  --border: #e5e5e5;
+  --input: #e5e5e5;
+  --ring: #ffa116;
+  --radius: 0.5rem;
+
+  /* LeetMeet-specific */
+  --easy: #00b8a3;
+  --medium: #ffb800;
+  --hard: #ff375f;
+}
+
+.dark {
+  --background: #1a1a1a;
+  --foreground: #eff1f6;
+  --card: #282828;
+  --card-foreground: #eff1f6;
+  --popover: #282828;
+  --popover-foreground: #eff1f6;
+  --primary: #ffa116;
+  --primary-foreground: #1a1a1a;
+  --secondary: #333333;
+  --secondary-foreground: #eff1f6;
+  --muted: #333333;
+  --muted-foreground: #a3a3a3;
+  --accent: #3a3a3a;
+  --accent-foreground: #eff1f6;
+  --destructive: #ff6b66;
+  --border: #3e3e3e;
+  --input: #3e3e3e;
+  --ring: #ffa116;
+
+  --easy: #2cbb5d;
+  --medium: #ffc01e;
+  --hard: #ff375f;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  --color-easy: var(--easy);
+  --color-medium: var(--medium);
+  --color-hard: var(--hard);
+
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-mono-face), ui-monospace, monospace;
+}
+
+@layer base {
+  * { @apply border-border; }
+}

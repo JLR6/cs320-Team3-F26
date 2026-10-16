@@ -15,6 +15,29 @@ cs320-Team3-F26/
 
 Frontend and backend setup instructions added soon.
 
+### Backend
+Scoop is needed to install the Supabase CLI
+
+Run the following for the Scoop and Supabase CLI Download inside Windows Powershell, as well as the Docker install
+
+**Scoop**
+```
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+```
+
+**Supabase CLI**
+```
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+```
+
+**Docker**
+```
+winget install -e --id Docker.DockerDesktop
+```
+
+
 ## Tech Stack
 
 ### Frontend
