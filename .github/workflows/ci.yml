@@ -206,7 +206,8 @@ jobs:
         run: npx --no-install supabase stop --no-backup
 
   gate:
-    name: CI passed
+    # Match the status check required by the repository ruleset.
+    name: build
     needs: [changes, backend, frontend, environment]
     if: always()
     runs-on: ubuntu-latest
