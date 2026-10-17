@@ -1,38 +1,37 @@
 import {
+  Inject,
   Injectable,
   BadRequestException,
   UnauthorizedException,
+  ForbiddenException,
   NotFoundException,
   ConflictException,
   InternalServerErrorException,
 } from '@nestjs/common';
-import { createClient } from '@supabase/supabase-js';
-import { CreateCommentDto, UpdateCommentDto } from './comments.dto';
+import { SupabaseService } from '../../src/integrations/supabase/supabase.service';
+import type { CreateCommentDto, UpdateCommentDto } from './comments.dto';
 
 @Injectable()
 export class CommentsService {
-  // Create a Supabase client.
-  // If we have a user token, Supabase will use that user's permissions.
-  private getClient(token?: string) {
-    const url = process.env.SUPABASE_URL;
-    const key = process.env.SUPABASE_ANON_KEY;
+  constructor(
+    @Inject(SupabaseService)
+    private readonly supabase: SupabaseService,
+  ) {}
 
-    if (!url || !key) {
-      throw new InternalServerErrorException(
-        'Supabase is not configured',
-      );
+  // Check that the request contains only allowed fields.
+  private checkBody(body: unknown, allowedFields: string[]): void {
+    if (typeof body !== 'object' || body === null || Array.isArray(body)) {
+      throw new BadRequestException('Invalid comment data');
     }
 
-    return createClient(url, key, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      ...(token ? { accessToken: async () => token } : {}),
-    });
+    for (const field of Object.keys(body)) {
+      if (!allowedFields.includes(field)) {
+        throw new BadRequestException(`Unsupported field: ${field}`);
+      }
+    }
   }
 
-  // Check that a comment is not empty.
+  // Check that comment text is valid.
   private checkText(text: unknown): string {
     if (typeof text !== 'string' || text.trim() === '') {
       throw new BadRequestException('Comment text cannot be empty');
@@ -41,84 +40,112 @@ export class CommentsService {
     return text.trim();
   }
 
-  // Verify the logged-in user.
+  // Check that the post ID is a UUID.
+  private checkPostId(postId: unknown): string {
+    const uuidPattern =
+      /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
+
+    if (typeof postId !== 'string' || !uuidPattern.test(postId)) {
+      throw new BadRequestException('Invalid post ID');
+    }
+
+    return postId;
+  }
+
+  // Get a Supabase client for the logged-in user.
   private async getUserClient(authorization?: string) {
-    const token = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+    const token = authorization?.match(/^Bearer\s+(\S+)$/i)?.[1];
 
     if (!token) {
       throw new UnauthorizedException('You must be logged in');
     }
 
-    const { data, error } = await this.getClient().auth.getUser(token);
+    const client = this.supabase.forUser(token);
+    const { data, error } = await client.auth.getUser(token);
 
-    if (error || !data.user) {
-      throw new UnauthorizedException('Invalid login token');
+    if (error || !data.user?.id) {
+      throw new UnauthorizedException('Invalid or expired login token');
     }
 
     return {
       userId: data.user.id,
-      client: this.getClient(token),
+      client,
     };
   }
 
-  // CREATE
-  async create(authorization: string | undefined, body: CreateCommentDto) {
-    const text = this.checkText(body?.comment_text);
-
-    const uuidPattern =
-      /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
-
-    if (!body || !uuidPattern.test(body.post_id)) {
-      throw new BadRequestException('Invalid post ID');
+  // Handle database errors without exposing internal details.
+  private fail(status: number, message: string): never {
+    if (status === 401) {
+      throw new UnauthorizedException('Invalid or expired access token');
     }
 
+    if (status === 403) {
+      throw new ForbiddenException('Operation not permitted');
+    }
+
+    throw new InternalServerErrorException(message);
+  }
+
+  // Create a comment on a post.
+  async create(authorization: string | undefined, body: CreateCommentDto) {
+    this.checkBody(body, ['post_id', 'comment_text']);
+
+    const postId = this.checkPostId(body.post_id);
+    const text = this.checkText(body.comment_text);
     const { userId, client } = await this.getUserClient(authorization);
 
-    const { data, error } = await client
+    const { data, error, status } = await client
       .from('post_comments')
       .insert({
-        post_id: body.post_id,
+        post_id: postId,
         user_id: userId,
         comment_text: text,
       })
-      .select()
+      .select('*')
       .single();
 
+    if (error?.code === '23503') {
+      throw new BadRequestException('Post does not exist');
+    }
+
     if (error) {
-      if (error.code === '23503') {
-        throw new BadRequestException('Post does not exist');
-      }
+      this.fail(status, 'Could not create comment');
+    }
+
+    if (!data) {
       throw new InternalServerErrorException('Could not create comment');
     }
 
     return data;
   }
 
-  // READ all comments belonging to one post
+  // Get all comments for a post.
   async findForPost(postId: string) {
-    const { data, error } = await this.getClient()
+    const { data, error, status } = await this.supabase
+      .anonymous()
       .from('post_comments')
-      .select()
+      .select('*')
       .eq('post_id', postId)
       .order('created_at', { ascending: true });
 
     if (error) {
-      throw new InternalServerErrorException('Could not load comments');
+      this.fail(status, 'Could not load comments');
     }
 
     return data;
   }
 
-  // READ one comment
+  // Get one comment by its ID.
   async findOne(id: string) {
-    const { data, error } = await this.getClient()
+    const { data, error, status } = await this.supabase
+      .anonymous()
       .from('post_comments')
-      .select()
+      .select('*')
       .eq('comment_id', id)
       .maybeSingle();
 
     if (error) {
-      throw new InternalServerErrorException('Could not load comment');
+      this.fail(status, 'Could not load comment');
     }
 
     if (!data) {
@@ -128,16 +155,18 @@ export class CommentsService {
     return data;
   }
 
-  // UPDATE
+  // Update a comment owned by the logged-in user.
   async update(
     id: string,
     authorization: string | undefined,
     body: UpdateCommentDto,
   ) {
-    const text = this.checkText(body?.comment_text);
+    this.checkBody(body, ['comment_text']);
+
+    const text = this.checkText(body.comment_text);
     const { userId, client } = await this.getUserClient(authorization);
 
-    const { data, error } = await client
+    const { data, error, status } = await client
       .from('post_comments')
       .update({
         comment_text: text,
@@ -145,27 +174,27 @@ export class CommentsService {
       })
       .eq('comment_id', id)
       .eq('user_id', userId)
-      .select()
+      .select('*')
       .maybeSingle();
 
     if (error) {
-      throw new InternalServerErrorException('Could not update comment');
+      this.fail(status, 'Could not update comment');
     }
 
     if (!data) {
       throw new NotFoundException(
-        'Comment not found or not owned by you',
+        'Comment not found or not editable',
       );
     }
 
     return data;
   }
 
-  // DELETE
-  async remove(id: string, authorization?: string) {
+  // Delete a comment owned by the logged-in user.
+  async remove(id: string, authorization?: string): Promise<void> {
     const { userId, client } = await this.getUserClient(authorization);
 
-    const { data, error } = await client
+    const { data, error, status } = await client
       .from('post_comments')
       .delete()
       .eq('comment_id', id)
@@ -173,21 +202,20 @@ export class CommentsService {
       .select('comment_id')
       .maybeSingle();
 
+    if (error?.code === '23503') {
+      throw new ConflictException(
+        'Comment has related likes that prevent deletion',
+      );
+    }
+
     if (error) {
-      if (error.code === '23503') {
-        throw new ConflictException(
-          'Comment has related records that prevent deletion',
-        );
-      }
-      throw new InternalServerErrorException('Could not delete comment');
+      this.fail(status, 'Could not delete comment');
     }
 
     if (!data) {
       throw new NotFoundException(
-        'Comment not found or not owned by you',
+        'Comment not found or not editable',
       );
     }
-
-    return { deleted: true };
   }
 }

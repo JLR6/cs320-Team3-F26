@@ -1,4 +1,3 @@
-
 import {
   Controller,
   Get,
@@ -10,6 +9,7 @@ import {
   Query,
   Headers,
   ParseUUIDPipe,
+  HttpCode,
 } from '@nestjs/common';
 import { CommentsService } from './comments.service';
 import { CreateCommentDto, UpdateCommentDto } from './comments.dto';
@@ -51,10 +51,11 @@ export class CommentsController {
 
   // DELETE /comments/:id
   @Delete(':id')
-  remove(
+  @HttpCode(204)
+  async remove(
     @Param('id', ParseUUIDPipe) id: string,
     @Headers('authorization') authorization: string | undefined,
   ) {
-    return this.commentsService.remove(id, authorization);
+    await this.commentsService.remove(id, authorization);
   }
 }
