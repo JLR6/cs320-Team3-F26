@@ -20,7 +20,9 @@ See [CI setup](docs/ci.md) for install/build commands, test suite conventions,
 the disposable integration environment, and required GitHub checks. CI runs on
 PRs and pushes to both `main` and `dev`, including merges into `dev`.
 
-Application tests have not been implemented yet; empty suites intentionally fail.
+Bootstrap mode keeps builds and code-quality checks required while application
+tests are being implemented. Coverage, integration, and E2E checks are temporarily
+skipped; see [CI setup](docs/ci.md) to enable full test enforcement.
 
 ## Tech Stack
 
