@@ -167,6 +167,9 @@ importers:
       prettier:
         specifier: ^3.9.9
         version: 3.9.10
+      shadcn:
+        specifier: ^4.21.4
+        version: 4.22.0
       tailwindcss:
         specifier: ^4.3.3
         version: 4.3.3
