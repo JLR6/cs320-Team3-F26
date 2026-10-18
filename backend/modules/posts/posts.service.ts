@@ -27,16 +27,27 @@ export interface PostRecord {
 export class PostsService {
   constructor(@Inject(SupabaseService) private readonly supabase: SupabaseService) {}
 
-  async findAll(accessToken: string) {
+  async findAll(accessToken: string, tags: string[] = []) {
     const client = this.supabase.forUser(accessToken);
 
-    const { data, error, status } = await client
+    // Join problems only when filtering by their tags.
+    let query = client
       .from('posts')
-      .select('*')
+      .select(
+        tags.length > 0
+          ? '*, problems!inner(problem_tags)'
+          : '*',
+      );
+
+    // Return posts whose problem matches ANY selected tag.
+    if (tags.length > 0) {
+      query = query.overlaps('problems.problem_tags', tags);
+    }
+
+    const { data, error, status } = await query
       .order('created_at', { ascending: false })
       .order('post_id', { ascending: false })
-      .limit(50)
-      .returns<PostRecord[]>();
+      .limit(50);
 
     if (error) {
       this.fail(status, 'Unable to fetch posts');

@@ -5,9 +5,11 @@ import request from 'supertest';
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AppModule } from '../../src/app.module';
 import { PostsService } from './posts.service';
+import { PostsController } from './posts.controller';
 
 describe('Posts HTTP endpoints', () => {
   let app: INestApplication;
+  let controller: PostsController;
   const id = '11111111-1111-4111-8111-111111111111';
   const post = { post_id: id, problem_number: 1, post_description: 'A post' };
   const service = {
@@ -23,6 +25,7 @@ describe('Posts HTTP endpoints', () => {
     }).overrideProvider(PostsService).useValue(service).compile();
     app = module.createNestApplication();
     await app.init();
+    controller = module.get(PostsController);
   });
 
   beforeEach(() => { vi.resetAllMocks(); });
@@ -35,7 +38,60 @@ describe('Posts HTTP endpoints', () => {
     service.findAll.mockResolvedValue([post]);
     await request(app.getHttpServer()).get('/posts')
       .set('Authorization', 'Bearer user-token').expect(200, [post]);
-    expect(service.findAll).toHaveBeenCalledWith('user-token');
+    expect(service.findAll).toHaveBeenCalledWith('user-token', []);
+  });
+
+  it('GET /posts accepts a single tag', async () => {
+    const filteredPost = { ...post, problems: { problem_tags: ['Array'] } };
+    service.findAll.mockResolvedValue([filteredPost]);
+    await request(app.getHttpServer()).get('/posts?tag=Array')
+      .set('Authorization', 'Bearer user-token').expect(200, [filteredPost]);
+    expect(service.findAll).toHaveBeenCalledWith('user-token', ['Array']);
+  });
+
+  it('GET /posts passes multiple selected tags for any-tag matching', async () => {
+    const posts = [
+      { ...post, problems: { problem_tags: ['Array'] } },
+      { ...post, post_id: '22222222-2222-4222-8222-222222222222', problems: { problem_tags: ['Hash Table'] } },
+    ];
+    service.findAll.mockResolvedValue(posts);
+    await request(app.getHttpServer()).get('/posts?tag=Array&tag=Hash%20Table')
+      .set('Authorization', 'Bearer user-token').expect(200, posts);
+    expect(service.findAll).toHaveBeenCalledWith('user-token', ['Array', 'Hash Table']);
+  });
+
+  it('GET /posts trims and deduplicates selected tags', async () => {
+    service.findAll.mockResolvedValue([]);
+    await request(app.getHttpServer()).get('/posts?tag=%20Array%20&tag=Array&tag=%20Hash%20Table%20')
+      .set('Authorization', 'Bearer user-token').expect(200, []);
+    expect(service.findAll).toHaveBeenCalledWith('user-token', ['Array', 'Hash Table']);
+  });
+
+  it('GET /posts preserves tag capitalization', async () => {
+    service.findAll.mockResolvedValue([]);
+    await request(app.getHttpServer()).get('/posts?tag=array&tag=Array')
+      .set('Authorization', 'Bearer user-token').expect(200, []);
+    expect(service.findAll).toHaveBeenCalledWith('user-token', ['array', 'Array']);
+  });
+
+  it.each(['tag=', 'tag=%20%20', 'tag=Array&tag='])('GET /posts rejects blank tags: %s', async query => {
+    await request(app.getHttpServer()).get(`/posts?${query}`)
+      .set('Authorization', 'Bearer user-token').expect(400);
+    expect(service.findAll).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { tag: null }, { tag: 42 }, { tag: {} }, { tag: ['Array', null] },
+    { tag: [['Array']] },
+  ])('rejects non-string tag values before calling the service: %j', ({ tag }) => {
+    expect(() => controller.findAll('Bearer user-token', tag))
+      .toThrow('Each tag must be a non-empty string');
+    expect(service.findAll).not.toHaveBeenCalled();
+  });
+
+  it('GET /posts with tags still requires authentication', async () => {
+    await request(app.getHttpServer()).get('/posts?tag=Array').expect(401);
+    expect(service.findAll).not.toHaveBeenCalled();
   });
 
   it('GET /posts/:id returns one post', async () => {

@@ -39,9 +39,60 @@ describe('PostsService', () => {
     expect(url.pathname).toBe('/rest/v1/posts');
     expect(url.searchParams.get('select')).toBe('*');
     expect(url.searchParams.get('limit')).toBe('50');
+    expect(url.searchParams.get('order')).toBe('created_at.desc,post_id.desc');
+    expect(url.searchParams.has('problems.problem_tags')).toBe(false);
     expect(new Headers(options?.headers).get('authorization')).toBe(
       'Bearer user-access-token',
     );
+  });
+
+  it.each([
+    { tags: ['Array'] },
+    { tags: ['Array', 'Hash Table'] },
+  ])('uses an inner join and any-tag overlap for %j', async ({ tags }) => {
+    const posts = [{
+      post_id: 'post-1',
+      post_description: 'A matching post',
+      problems: { problem_tags: [tags[0]] },
+    }];
+    fetchMock.mockResolvedValueOnce(Response.json(posts));
+
+    await expect(service.findAll('user-access-token', tags)).resolves.toEqual(posts);
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [input, options] = fetchMock.mock.calls[0];
+    const url = new URL(String(input));
+    expect(url.pathname).toBe('/rest/v1/posts');
+    expect(url.searchParams.get('select')).toBe('*,problems!inner(problem_tags)');
+    // "ov" matches any selected array element; "cs" would require every tag.
+    expect(url.searchParams.get('problems.problem_tags')).toBe(`ov.{${tags.join(',')}}`);
+    expect(url.searchParams.get('order')).toBe('created_at.desc,post_id.desc');
+    expect(url.searchParams.get('limit')).toBe('50');
+    expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-access-token');
+  });
+
+  it('does not join or filter problems when given an empty tag array', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json([]));
+    await expect(service.findAll('user-token', [])).resolves.toEqual([]);
+    const [input] = fetchMock.mock.calls[0];
+    const url = new URL(String(input));
+    expect(url.searchParams.get('select')).toBe('*');
+    expect(url.searchParams.has('problems.problem_tags')).toBe(false);
+  });
+
+  it('returns an empty list when no posts match the selected tags', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json([]));
+    await expect(service.findAll('user-token', ['Graph'])).resolves.toEqual([]);
+  });
+
+  it('hides database errors when filtering by tags', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json(
+      { message: 'Private database details', code: 'XX000' }, { status: 500 },
+    ));
+    const result = service.findAll('user-token', ['Array']);
+    await expect(result).rejects.toBeInstanceOf(InternalServerErrorException);
+    await expect(result).rejects.toThrow('Unable to fetch posts');
+    await expect(result).rejects.not.toThrow('Private database details');
   });
 
   it('returns an empty list when no posts are visible', async () => {

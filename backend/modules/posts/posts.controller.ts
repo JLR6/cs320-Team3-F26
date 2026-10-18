@@ -11,6 +11,8 @@ import {
   Patch,
   Post,
   UnauthorizedException,
+  BadRequestException,
+  Query,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { parseCreatePost, parseUpdatePost } from './dto/post-content.dto';
@@ -20,9 +22,30 @@ export class PostsController {
   constructor(@Inject(PostsService) private readonly postsService: PostsService) {}
 
   @Get()
-  findAll(@Headers('authorization') authorization?: string) {
-    return this.postsService.findAll(this.accessToken(authorization));
+  findAll(@Headers('authorization') authorization?: string,
+  @Query('tag') tag?: unknown,
+) {
+  const values = tag === undefined
+    ? []
+    : Array.isArray(tag) ? tag : [tag];
+
+  const tags: string[] = [];
+
+  for (const value of values) {
+    if (typeof value !== 'string' || !value.trim()) {
+      throw new BadRequestException(
+        'Each tag must be a non-empty string',
+      );
+    }
+
+    tags.push(value.trim());
   }
+
+  return this.postsService.findAll(
+    this.accessToken(authorization),
+    [...new Set(tags)],
+  );
+}
 
   @Get(':id')
   findOne(
