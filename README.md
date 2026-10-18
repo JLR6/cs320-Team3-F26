@@ -13,7 +13,16 @@ cs320-Team3-F26/
 
 ## Setup
 
-Frontend and backend setup instructions added soon.
+Build and test tooling is configured for GitHub Actions. Application source is
+minimal boilerplate for the frontend and backend developers to implement.
+
+See [CI setup](docs/ci.md) for install/build commands, test suite conventions,
+the disposable integration environment, and required GitHub checks. CI runs on
+PRs and pushes to both `main` and `dev`, including merges into `dev`.
+
+Bootstrap mode keeps builds and code-quality checks required while application
+tests are being implemented. Coverage, integration, and E2E checks are temporarily
+skipped; see [CI setup](docs/ci.md) to enable full test enforcement.
 
 ### Backend
 Scoop is needed to install the Supabase CLI
