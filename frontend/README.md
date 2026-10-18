@@ -33,7 +33,7 @@ test commands, and branch protection requirements.
 
 # General Frontend Setup
 
-First, since we are using a `.nvmrc`, pick the correct node version in the terminal with `nvm use`. If `pnpm` isn't installed, run `npm install -g pnpm` and `pnpm -v` to check that it is installed. Stick to using this as it is the default for Next.js and also not a good idea to mix package managers.
+If `pnpm` isn't installed, run `npm install -g pnpm` and `pnpm -v` to check that it is installed. Stick to using this as it is the default for Next.js and also not a good idea to mix package managers.
 Run `pnpm install` when inside the frontend folder after every commit that is pulled locally; can be reached from project root via `cd frontend`.
 
 Make a `.env.local` using the `.env.example` fields and fill them out by looking for the proper values based on the comments in `.env.example`. Never push these keys' values to GitHub - if new ones are needed, add to .env.example and add a comment on how to find the value for the key.

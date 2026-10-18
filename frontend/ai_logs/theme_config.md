@@ -4,10 +4,10 @@ Light and Dark Theme Configuration
 
 ## Main takeaways (You must write this section manually and without AI assistance. The purpose is for you to reflect on what you did and practice articulating that for others.)
 
-* learned how to setup up and configure themes for a website from Next.js documentation, but needed help to figure out what fields I wanted to change in the themes and to what
-* Learned what the more important fields were by modifying various parts of the sections, like `--primary`.
-* added my own fields for separating easy, medium, and hard problems that will be used to categorize posts later
-* hopefully it is easily extensible, but I think a key takeaway I have is that it really is quite extensible and customizable
+- learned how to setup up and configure themes for a website from Next.js documentation, but needed help to figure out what fields I wanted to change in the themes and to what
+- Learned what the more important fields were by modifying various parts of the sections, like `--primary`.
+- added my own fields for separating easy, medium, and hard problems that will be used to categorize posts later
+- hopefully it is easily extensible, but I think a key takeaway I have is that it really is quite extensible and customizable
 
 ## Resource Usage
 
@@ -19,7 +19,7 @@ Tokens Used & Dollar Equivalent (if using a free tier, specify how much of your 
 
 Generate a globals.css for my Next.js that contains the light (default) and dark themes for LeetCode.
 
-``` CSS
+```CSS
 @import "tailwindcss";
 @custom-variant dark (&:is(.dark *));
 
