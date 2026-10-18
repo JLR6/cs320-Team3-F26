@@ -24,6 +24,29 @@ Bootstrap mode keeps builds and code-quality checks required while application
 tests are being implemented. Coverage, integration, and E2E checks are temporarily
 skipped; see [CI setup](docs/ci.md) to enable full test enforcement.
 
+### Backend
+Scoop is needed to install the Supabase CLI
+
+Run the following for the Scoop and Supabase CLI Download inside Windows Powershell, as well as the Docker install
+
+**Scoop**
+```
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+Invoke-RestMethod -Uri https://get.scoop.sh | Invoke-Expression
+```
+
+**Supabase CLI**
+```
+scoop bucket add supabase https://github.com/supabase/scoop-bucket.git
+scoop install supabase
+```
+
+**Docker**
+```
+winget install -e --id Docker.DockerDesktop
+```
+
+
 ## Tech Stack
 
 ### Frontend
