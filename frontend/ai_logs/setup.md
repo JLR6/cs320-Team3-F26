@@ -1,16 +1,17 @@
-# Task Title 
+# Task Title
+
 Setup & Signup Page
 
 ## Main takeaways (You must write this section manually and without AI assistance. The purpose is for you to reflect on what you did and practice articulating that for others.)
 
-* Setup and scaffolded Next.js project with stack's ui components
-  * is done with CLI and npm/pnpm
-* Next.js has very intuitive routing with folders
-  * putting auth into a next.js group
-* Used zod to validate the fields and I used AI to generate the necessary limits on the fields we have
-  * at the moment, no requirements besides length for password
-* generated components with correct alignments and fields for the signup form
-  * tried to keep it leetcode theme as much as possible but will probably end up using a global theme that will be maintained for fonts and colors
+- Setup and scaffolded Next.js project with stack's ui components
+  - is done with CLI and npm/pnpm
+- Next.js has very intuitive routing with folders
+  - putting auth into a next.js group
+- Used zod to validate the fields and I used AI to generate the necessary limits on the fields we have
+  - at the moment, no requirements besides length for password
+- generated components with correct alignments and fields for the signup form
+  - tried to keep it leetcode theme as much as possible but will probably end up using a global theme that will be maintained for fonts and colors
 
 ## Resource Usage
 
@@ -21,6 +22,7 @@ Tokens Used & Dollar Equivalent (if using a free tier, specify how much of your 
 ## Chat Log
 
 Conversation
+
 1. Planning the signup page
 
 User:
@@ -46,8 +48,8 @@ Suggested order of work
 Stretch ideas (OAuth, username availability check, password strength meter)
 
 2. Setup walkthrough
-User:
-[Attached an excerpt of Claude's plan: the "Setup (once, shared with the rest of the team)" section]
+   User:
+   [Attached an excerpt of Claude's plan: the "Setup (once, shared with the rest of the team)" section]
 
 guide me through setup
 
@@ -61,4 +63,4 @@ Set a LeetCode-style dark theme through CSS variables (orange primary, green acc
 Add shadcn components (button, input, label, form, card, sonner) and the <Toaster />
 Install react-hook-form, zod, @hookform/resolvers, TanStack Query, lucide-react, MSW
 Create a client-side Providers component for QueryClientProvider
-Smoke test, then commit to a branch for teammate review 
+Smoke test, then commit to a branch for teammate review

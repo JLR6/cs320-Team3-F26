@@ -1,5 +1,5 @@
-@import "tailwindcss";
-@import "shadcn/tailwind.css";
+@import 'tailwindcss';
+@import 'shadcn/tailwind.css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -10,7 +10,7 @@
   --card-foreground: #262626;
   --popover: #ffffff;
   --popover-foreground: #262626;
-  --primary: #ffa116;            /* LeetCode orange */
+  --primary: #ffa116; /* LeetCode orange */
   --primary-foreground: #1a1a1a;
   --secondary: #f2f2f2;
   --secondary-foreground: #262626;
@@ -88,5 +88,7 @@
 }
 
 @layer base {
-  * { @apply border-border; }
+  * {
+    @apply border-border;
+  }
 }
