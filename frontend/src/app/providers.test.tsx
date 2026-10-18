@@ -6,6 +6,10 @@ import { Providers } from './providers';
 
 test('renders children and covers provider initialization', () => {
   // mocks the element behavior and checks that they are there
-  render(<Providers><div>Test Child</div></Providers>);
+  render(
+    <Providers>
+      <div>Test Child</div>
+    </Providers>,
+  );
   expect(screen.getByText('Test Child')).toBeInTheDocument();
 });
