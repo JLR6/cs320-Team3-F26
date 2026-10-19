@@ -1,13 +1,15 @@
+'use client';
+
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL!,
-  process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY!,
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
 );
 
-const Forgot = () => {
+const ForgotPass = () => {
   const [email, setEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -69,11 +71,11 @@ const Forgot = () => {
         </button>
 
         <div className="back-login">
-          <Link to="/">Back to Login</Link>
+          <Link href="/">Back to Login</Link>
         </div>
       </form>
     </div>
   );
 };
 
-export default Forgot;
+export default ForgotPass;

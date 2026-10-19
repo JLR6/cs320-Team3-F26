@@ -1,23 +1,13 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import ForgotPass from './forgotPass';
-import { createClient } from '@supabase/supabase-js';
-const supabase = createClient(
-  process.env.REACT_APP_SUPABASE_URL!,
-  process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY!,
-);
+'use client';
 
-// Routed to Forgot Password? Section
-function LoginApp() {
-  return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Login />} />
-        <Route path="/forgotPass" element={<ForgotPass />} />
-      </Routes>
-    </Router>
-  );
-}
+import React, { useState } from 'react';
+import Link from 'next/link';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+);
 
 const Login = () => {
   //first week of login page set up the basic states for authenticaiton
@@ -94,7 +84,7 @@ const Login = () => {
             Remember me
           </label>
 
-          <Link to="/forgotPass">Forgot Password?</Link>
+          <Link href="/forgotPass">Forgot Password?</Link>
         </div>
 
         {errorMessage && <p role="alert">{errorMessage}</p>}
@@ -114,4 +104,4 @@ const Login = () => {
   );
 };
 
-export default LoginApp;
+export default Login;

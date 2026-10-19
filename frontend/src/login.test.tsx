@@ -1,4 +1,6 @@
-const signIn = jest.fn().mockResolvedValue({
+import { vi, test, expect } from 'vitest';
+
+const signIn = vi.fn().mockResolvedValue({
   data: { user: null },
   error: { message: 'Invalid login credentials' },
 });
@@ -10,7 +12,7 @@ test('login fails with invalid credentials', async () => {
 });
 
 test('login success', async () => {
-  const signIn = jest.fn().mockResolvedValue({
+  const signIn = vi.fn().mockResolvedValue({
     data: { user: { id: 'leetmeet#1fan' } },
     error: null,
   });
@@ -22,6 +24,7 @@ test('login success', async () => {
 });
 
 test('login calls Supabase authentication', async () => {
+  signIn.mockClear();
   await signIn();
 
   expect(signIn).toHaveBeenCalledTimes(1);
