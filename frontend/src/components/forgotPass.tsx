@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState } from 'react';
@@ -80,4 +79,3 @@ const ForgotPass = () => {
 };
 
 export default ForgotPass;
-
