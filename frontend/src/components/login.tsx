@@ -4,6 +4,11 @@ import React, { useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@supabase/supabase-js';
 
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
+);
+
 const Login = () => {
   //first week of login page set up the basic states for authenticaiton
   //added more for actual supabase authentication
@@ -22,11 +27,6 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const supabase = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
-      );
-
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
