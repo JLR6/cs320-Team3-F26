@@ -1,28 +1,28 @@
-import React, { useState } from "react";
-import { Link } from "react-router-dom";
-import { createClient } from "@supabase/supabase-js";
+import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
+import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL!,
-  process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY!
+  process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY!,
 );
 
 const Forgot = () => {
-  const [email, setEmail] = useState("");
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [email, setEmail] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleReset = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    setErrorMessage("");
-    setSuccessMessage("");
+    setErrorMessage('');
+    setSuccessMessage('');
     setLoading(true);
 
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: window.location.origin + "/updatePassword",
+        redirectTo: window.location.origin + '/updatePassword',
       });
 
       if (error) {
@@ -31,10 +31,10 @@ const Forgot = () => {
       }
 
       setSuccessMessage(
-        "If an account exists for this email, check your inbox for a password reset link."
+        'If an account exists for this email, check your inbox for a password reset link.',
       );
     } catch {
-      setErrorMessage("Something went wrong. Please try again.");
+      setErrorMessage('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -65,7 +65,7 @@ const Forgot = () => {
         {successMessage && <p role="status">{successMessage}</p>}
 
         <button type="submit" disabled={loading}>
-          {loading ? "Sending..." : "Submit"}
+          {loading ? 'Sending...' : 'Submit'}
         </button>
 
         <div className="back-login">
