@@ -1,10 +1,10 @@
-import React, { useState } from "react";
-import { BrowserRouter as Router, Routes, Route, Link } from "react-router-dom";
-import ForgotPass from "./forgotPass";
-import { createClient } from "@supabase/supabase-js";
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import ForgotPass from './forgotPass';
+import { createClient } from '@supabase/supabase-js';
 const supabase = createClient(
   process.env.REACT_APP_SUPABASE_URL!,
-  process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY!
+  process.env.REACT_APP_SUPABASE_PUBLISHABLE_KEY!,
 );
 
 // Routed to Forgot Password? Section
@@ -22,18 +22,18 @@ function LoginApp() {
 const Login = () => {
   //first week of login page set up the basic states for authenticaiton
   //added more for actual supabase authentication
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
-  const [successMessage, setSuccessMessage] = useState("");
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
-  
+
   const handleLogin = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    setErrorMessage("");
-    setSuccessMessage("");
+    setErrorMessage('');
+    setSuccessMessage('');
     setLoading(true);
 
     try {
@@ -48,11 +48,11 @@ const Login = () => {
       }
 
       if (data.user) {
-        setSuccessMessage("Login successful! Welcome to LeetMeet.");
-        console.log("User signed in:", data.user.id);
+        setSuccessMessage('Login successful! Welcome to LeetMeet.');
+        console.log('User signed in:', data.user.id);
       }
     } catch {
-      setErrorMessage("Something went wrong. Please try again.");
+      setErrorMessage('Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -101,7 +101,7 @@ const Login = () => {
         {successMessage && <p role="status">{successMessage}</p>}
 
         <button type="submit" disabled={loading}>
-          {loading ? "Logging in..." : "Login"}
+          {loading ? 'Logging in...' : 'Login'}
         </button>
 
         <div className="register-link">
