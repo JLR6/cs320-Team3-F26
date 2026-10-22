@@ -9,6 +9,7 @@ import { ProblemsService } from './problems.service';
   imports: [SupabaseModule],
   controllers: [ProblemsController, LeetCodeController],
   providers: [ProblemsService, LeetCodeService],
-  exports: [ProblemsService],
+  // Other modules (such as PostsModule) can reuse both services.
+  exports: [ProblemsService, LeetCodeService],
 })
 export class ProblemsModule {}
