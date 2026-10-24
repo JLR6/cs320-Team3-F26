@@ -11,8 +11,8 @@
   --popover: #ffffff;
   --popover-foreground: #262626;
   --primary: #ffa116; /* LeetCode orange */
-  --primary-foreground: #1a1a1a;
-  --secondary: #f2f2f2;
+  --primary-foreground: #ffffff;
+  --secondary: #f5f5f5;
   --secondary-foreground: #262626;
   --muted: #f2f2f2;
   --muted-foreground: #6b6b6b;
@@ -22,7 +22,11 @@
   --border: #e5e5e5;
   --input: #e5e5e5;
   --ring: #ffa116;
-  --radius: 0.5rem;
+  --radius-sm: 6px;
+  --radius-lg: 32px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 20px;
 
   /* LeetMeet-specific */
   --easy: #00b8a3;
@@ -39,7 +43,7 @@
   --popover-foreground: #eff1f6;
   --primary: #ffa116;
   --primary-foreground: #1a1a1a;
-  --secondary: #333333;
+  --secondary: #2c2c2c;
   --secondary-foreground: #eff1f6;
   --muted: #333333;
   --muted-foreground: #a3a3a3;
@@ -79,9 +83,9 @@
   --color-medium: var(--medium);
   --color-hard: var(--hard);
 
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-sm: calc(var(--radius) - 4px);
+  --radius-lg: var(--radius-lg);
+  --radius-md: calc(var(--radius));
+  --radius-sm: calc(var(--radius-sm));
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-mono-face), ui-monospace, monospace;
