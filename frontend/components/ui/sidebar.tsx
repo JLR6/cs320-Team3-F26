@@ -365,7 +365,7 @@ function SidebarSeparator({
   ...props
 }: React.ComponentProps<typeof Separator>) {
   return (
-    <Separator 
+    <Separator
       data-slot="sidebar-separator"
       data-sidebar="separator"
       orientation="horizontal"
@@ -388,7 +388,6 @@ function SidebarContent({ className, ...props }: React.ComponentProps<'div'>) {
     />
   );
 }
-
 
 function SidebarGroup({ className, ...props }: React.ComponentProps<'div'>) {
   return (
@@ -493,7 +492,8 @@ const sidebarMenuButtonVariants = cva(
   {
     variants: {
       variant: {
-        default: 'hover:bg-secondary active:bg-secondary data-active:bg-secondary',
+        default:
+          'hover:bg-secondary active:bg-secondary data-active:bg-secondary',
         noHover: '',
         primaryRound:
           'bg-primary text-primary-foreground justify-center pl-0 rounded-lg hover:bg-primary/80 active:bg-primary/80 active:text-primary-foreground',

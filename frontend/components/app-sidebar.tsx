@@ -4,7 +4,7 @@
 'use client';
 
 import * as React from 'react';
-import { usePathname } from "next/navigation";
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
 
@@ -129,13 +129,12 @@ const loggedOutData = {
 
 // As there is currently no functionality, manually assign to preview either sidebar version
 // Later, data should be constructed by properly checking authentication and fetching information
-const data = loggedInData
+const data = loggedInData;
 
 /**
  * The SidebarMenu containing the main navigation (mapped from data.navMain)
  */
 function NavMain() {
-
   const current = usePathname();
 
   return data.navMain ? (
@@ -146,10 +145,13 @@ function NavMain() {
         return (
           <SidebarMenuItem key={item.title}>
             {/* <Link href={item.url}> */}
-              <SidebarMenuButton isActive={item.url === current} render={<Link href={item.url} />}>
-                  <LucideIcon />
-                  {item.title}
-              </SidebarMenuButton>
+            <SidebarMenuButton
+              isActive={item.url === current}
+              render={<Link href={item.url} />}
+            >
+              <LucideIcon />
+              {item.title}
+            </SidebarMenuButton>
             {/* </Link> */}
           </SidebarMenuItem>
         );
@@ -267,12 +269,14 @@ function NavSubmenuPopover() {
  * The SidebarGroup containing the submenu (mapped from data.navSubmenu)
  */
 function NavSubmenu() {
-
-  const current = usePathname()
+  const current = usePathname();
 
   return data.navSubmenu ? (
     <SidebarGroup className="px-4">
-      <SidebarSeparator orientation="horizontal" className="mr-2 h-4 mt-5 mb-2.5" />
+      <SidebarSeparator
+        orientation="horizontal"
+        className="mr-2 h-4 mt-5 mb-2.5"
+      />
 
       <Collapsible
         key={data.navSubmenu.title}
@@ -297,9 +301,13 @@ function NavSubmenu() {
             <SidebarMenu className="px-0">
               {data.navSubmenu.items.map((item) => (
                 <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton size="sm" isActive={item.url === current} render={<Link href={item.url} />}>
-                      {item.title}
-                    </SidebarMenuButton>
+                  <SidebarMenuButton
+                    size="sm"
+                    isActive={item.url === current}
+                    render={<Link href={item.url} />}
+                  >
+                    {item.title}
+                  </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
             </SidebarMenu>
@@ -318,8 +326,8 @@ function SettingPopoverButton() {
   return (
     <Link href="/settings">
       <PopoverMenuButton>
-          <Settings className="h-5! w-5!" />
-          {ActionTypeUser.Settings}
+        <Settings className="h-5! w-5!" />
+        {ActionTypeUser.Settings}
       </PopoverMenuButton>
     </Link>
   );
@@ -330,9 +338,8 @@ function SettingPopoverButton() {
  * On click, triggers a secondary popover for choosing theme
  */
 function AppearancePopoverButton() {
-  
-  const current = useTheme().theme || "system"
-  const setTheme = useTheme().setTheme
+  const current = useTheme().theme || 'system';
+  const setTheme = useTheme().setTheme;
 
   return (
     <Popover>
@@ -349,7 +356,7 @@ function AppearancePopoverButton() {
       <PopoverContent side="right" align="end" className="ml-1">
         {Object.entries(Theme).map(([theme, title]) => (
           <PopoverMenuButton key={title} onClick={() => setTheme(theme)}>
-            <Check className={current !== theme ? "opacity-0" : undefined}/>
+            <Check className={current !== theme ? 'opacity-0' : undefined} />
             {title}
           </PopoverMenuButton>
         ))}
@@ -359,7 +366,7 @@ function AppearancePopoverButton() {
 }
 
 /**
- * The PopoverMenuButton for sign 
+ * The PopoverMenuButton for sign
  * TO DO: On click, signs the user out
  */
 function SignOutPopoverButton() {
@@ -378,11 +385,11 @@ function SignOutPopoverButton() {
 function ActionUser(type: ActionTypeUser) {
   switch (type) {
     case ActionTypeUser.Settings:
-      return <SettingPopoverButton key={type}/>
+      return <SettingPopoverButton key={type} />;
     case ActionTypeUser.Appearance:
       return <AppearancePopoverButton key={type} />;
     case ActionTypeUser.SignOut:
-      return <SignOutPopoverButton key={type} />
+      return <SignOutPopoverButton key={type} />;
   }
 }
 
@@ -428,8 +435,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" variant="noHover" render={<Link href="/" />}>
-                <span className="font-medium">LeetMeet</span>
+            <SidebarMenuButton
+              size="lg"
+              variant="noHover"
+              render={<Link href="/" />}
+            >
+              <span className="font-medium">LeetMeet</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
