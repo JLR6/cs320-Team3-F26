@@ -16,36 +16,41 @@ import {
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { parseCreatePost, parseUpdatePost } from './dto/post-content.dto';
+import { parsePostPagination } from './dto/post-pagination.dto';
 
 @Controller('posts')
 export class PostsController {
   constructor(@Inject(PostsService) private readonly postsService: PostsService) {}
 
   @Get()
-  findAll(@Headers('authorization') authorization?: string,
-  @Query('tag') tag?: unknown,
-) {
-  const values = tag === undefined
-    ? []
-    : Array.isArray(tag) ? tag : [tag];
+  findAll(
+    @Headers('authorization') authorization?: string,
+    @Query('tag') tag?: unknown,
+    @Query('cursor') cursor?: unknown,
+    @Query('limit') limit?: unknown,
+  ) {
+    const values = tag === undefined
+      ? []
+      : Array.isArray(tag) ? tag : [tag];
 
-  const tags: string[] = [];
+    const tags: string[] = [];
 
-  for (const value of values) {
-    if (typeof value !== 'string' || !value.trim()) {
-      throw new BadRequestException(
-        'Each tag must be a non-empty string',
-      );
+    for (const value of values) {
+      if (typeof value !== 'string' || !value.trim()) {
+        throw new BadRequestException(
+          'Each tag must be a non-empty string',
+        );
+      }
+
+      tags.push(value.trim());
     }
 
-    tags.push(value.trim());
+    return this.postsService.findAll(
+      this.accessToken(authorization),
+      [...new Set(tags)],
+      parsePostPagination(cursor, limit),
+    );
   }
-
-  return this.postsService.findAll(
-    this.accessToken(authorization),
-    [...new Set(tags)],
-  );
-}
 
   @Get(':id')
   findOne(
