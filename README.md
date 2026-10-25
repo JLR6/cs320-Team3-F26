@@ -46,7 +46,6 @@ scoop install supabase
 winget install -e --id Docker.DockerDesktop
 ```
 
-
 ## Tech Stack
 
 ### Frontend
