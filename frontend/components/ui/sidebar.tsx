@@ -26,7 +26,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { PanelLeftIcon, Menu } from 'lucide-react';
+import { Menu } from 'lucide-react';
 
 const SIDEBAR_COOKIE_NAME = 'sidebar_state';
 const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
@@ -369,7 +369,7 @@ function SidebarSeparator({
       data-slot="sidebar-separator"
       data-sidebar="separator"
       orientation="horizontal"
-      className="mr-2 h-4 mt-5 mb-2.5"
+      className={cn('mr-2 h-4 mt-5 mb-2.5', className)}
       {...props}
     />
   );

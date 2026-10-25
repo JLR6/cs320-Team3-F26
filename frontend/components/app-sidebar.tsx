@@ -116,16 +116,16 @@ const loggedInData = {
 };
 
 // Sample data that constructs the logged out sidebar
-const loggedOutData = {
-  navMain: [
-    {
-      title: 'Home',
-      icon: House,
-      url: '#',
-    },
-  ],
-  enabledActionsMain: [ActionTypeMain.SignUp, ActionTypeMain.LogIn],
-};
+// const loggedOutData = {
+//   navMain: [
+//     {
+//       title: 'Home',
+//       icon: House,
+//       url: '#',
+//     },
+//   ],
+//   enabledActionsMain: [ActionTypeMain.SignUp, ActionTypeMain.LogIn],
+// };
 
 // As there is currently no functionality, manually assign to preview either sidebar version
 // Later, data should be constructed by properly checking authentication and fetching information
