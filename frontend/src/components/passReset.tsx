@@ -11,9 +11,7 @@ const UpdatePassword = () => {
   const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleUpdate = async (
-    event: React.FormEvent<HTMLFormElement>,
-  ) => {
+  const handleUpdate = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
     setErrorMessage('');
@@ -47,9 +45,7 @@ const UpdatePassword = () => {
         <h1 className="text-2xl font-semibold">LeetMeet</h1>
         <h2 className="text-xl font-medium">Reset Password</h2>
 
-        <p className="text-muted-foreground">
-          Enter your new password below.
-        </p>
+        <p className="text-muted-foreground">Enter your new password below.</p>
 
         <div>
           <input
