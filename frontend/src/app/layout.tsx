@@ -2,7 +2,6 @@ import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
 import { Providers } from './providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
-import { ThemeToggle } from '@/components/theme-toggle';
 
 import { Inter, JetBrains_Mono } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });

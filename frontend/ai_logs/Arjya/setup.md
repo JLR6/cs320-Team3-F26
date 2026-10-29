@@ -63,4 +63,4 @@ Set a LeetCode-style dark theme through CSS variables (orange primary, green acc
 Add shadcn components (button, input, label, form, card, sonner) and the <Toaster />
 Install react-hook-form, zod, @hookform/resolvers, TanStack Query, lucide-react, MSW
 Create a client-side Providers component for QueryClientProvider
-Smoke test, then commit to a branch for teammate review 
+Smoke test, then commit to a branch for teammate review
