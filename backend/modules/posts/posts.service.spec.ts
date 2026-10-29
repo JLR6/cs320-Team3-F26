@@ -9,17 +9,43 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../src/integrations/supabase/supabase.service';
 import { PostsService } from './posts.service';
+import { ProblemsService } from '../problems/problems.service';
+import { LeetCodeService } from '../problems/leetcode.service';
 
 describe('PostsService', () => {
   const fetchMock = vi.fn<typeof fetch>();
   let service: PostsService;
 
+  //mock dependencies so they don't actually contact real leetcode api or problems DB
+  const problemsMock = {
+    findOne: vi.fn(),
+    findOrCreate: vi.fn(),
+  };
+  const leetcodeMock = {
+    fetchProblemBySlug: vi.fn(),
+  };
+
   beforeEach(() => {
     vi.stubEnv('SUPABASE_URL', 'http://127.0.0.1:54321');
     vi.stubEnv('SUPABASE_ANON_KEY', 'test-anon-key');
     vi.stubGlobal('fetch', fetchMock);
-    service = new PostsService(new SupabaseService());
+
+  //start each test with a clean slate for the mocks
+  problemsMock.findOne.mockReset();
+  problemsMock.findOrCreate.mockReset();
+  leetcodeMock.fetchProblemBySlug.mockReset();
+  // existing problems in the DB are found by default
+  // individual tests can override this to simulate missing problemss
+  problemsMock.findOne.mockResolvedValue({
+    problem_number: 1,
+    problem_title: 'Two Sum',
   });
+  service = new PostsService(
+    new SupabaseService(),
+    problemsMock as unknown as ProblemsService,
+    leetcodeMock as unknown as LeetCodeService,
+  );
+});
 
   afterEach(() => {
     vi.resetAllMocks();
@@ -168,5 +194,119 @@ describe('PostsService', () => {
   it('returns 409 when likes or comments prevent deletion', async () => {
     fetchMock.mockResolvedValueOnce(Response.json({ code: '23503', message: 'Foreign key violation' }, { status: 409 }));
     await expect(service.remove('user-token', post.post_id)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  describe('LeetCode lookup when creating posts', () => {
+    const twoSum = {
+      problem_number: 1,
+      problem_link: 'https://leetcode.com/problems/two-sum/',
+      problem_title: 'Two Sum',
+      problem_difficulty: 'Easy',
+      problem_tags: ['Array', 'Hash Table'],
+    };
+
+    it('uses existing problems without fetching from LeetCode', async () => {
+      mockUser();
+      fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }));
+      await expect(service.create('user-token', {
+        problem_number: 1,
+        problem_slug: 'two-sum',
+        post_description: post.post_description,
+      })).resolves.toEqual(post);
+      expect(problemsMock.findOne).toHaveBeenCalledWith(1);
+      expect(leetcodeMock.fetchProblemBySlug).not.toHaveBeenCalled();
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    });
+
+    it('imports a missing problem before creating a post', async () => {
+      // pretend Two Sum isn't in our database yet
+      problemsMock.findOne.mockRejectedValueOnce(
+        new NotFoundException('Problem not found'),
+      );
+      leetcodeMock.fetchProblemBySlug.mockResolvedValueOnce(twoSum);
+      problemsMock.findOrCreate.mockResolvedValueOnce(twoSum);
+
+      mockUser();
+      fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }));
+      await expect(service.create('user-token', {
+        problem_number: 1,
+        problem_slug: 'two-sum',
+        post_description: post.post_description,
+      })).resolves.toEqual(post);
+
+      expect(leetcodeMock.fetchProblemBySlug).toHaveBeenCalledWith('two-sum');
+      expect(problemsMock.findOrCreate).toHaveBeenCalledWith(twoSum);
+
+      // make sure we don't save problem_slug in the posts table
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      const [input, options] = fetchMock.mock.calls[1];
+      expect(new URL(String(input)).pathname).toBe('/rest/v1/posts');
+      expect(options?.method).toBe('POST');
+      const body = JSON.parse(String(options?.body));
+      expect(body).toEqual({
+        problem_number: 1,
+        post_description: post.post_description,
+        user_id: post.user_id,
+      });
+    });
+
+    it('rejects missing problems without a slug', async () => {
+      problemsMock.findOne.mockRejectedValueOnce(
+        new NotFoundException('Problem not found'),
+      );
+      mockUser();
+      await expect(service.create('user-token', {
+        problem_number: 1,
+      })).rejects.toThrow('Problem not found. Include problem_slug');
+      expect(leetcodeMock.fetchProblemBySlug).not.toHaveBeenCalled();
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('rejects a slug that has the wrong problem number', async () => {
+      problemsMock.findOne.mockRejectedValueOnce(
+        new NotFoundException('Problem not found'),
+      );
+      // Two Sum is #1, but the post is asking for#200
+      leetcodeMock.fetchProblemBySlug.mockResolvedValueOnce(twoSum);
+      mockUser();
+      await expect(service.create('user-token', {
+        problem_number: 200,
+        problem_slug: 'two-sum',
+      })).rejects.toThrow('problem_slug does not match problem_number');
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('does not create a post if the LeetCode API fails', async () => {
+      problemsMock.findOne.mockRejectedValueOnce(
+        new NotFoundException('Problem not found'),
+      );
+      leetcodeMock.fetchProblemBySlug.mockRejectedValueOnce(
+        new Error('LeetCode API unavailable'),
+      );
+      mockUser();
+      await expect(service.create('user-token', {
+        problem_number: 1,
+        problem_slug: 'two-sum',
+      })).rejects.toThrow('LeetCode API unavailable');
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('does not create a post if the database lookup fails', async () => {
+      problemsMock.findOne.mockRejectedValueOnce(
+        new InternalServerErrorException('Unable to fetch problem'),
+      );
+      mockUser();
+      await expect(service.create('user-token', {
+        problem_number: 1,
+        problem_slug: 'two-sum',
+      })).rejects.toBeInstanceOf(InternalServerErrorException);
+      expect(leetcodeMock.fetchProblemBySlug).not.toHaveBeenCalled();
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
   });
 });
