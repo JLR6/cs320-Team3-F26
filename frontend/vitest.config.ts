@@ -22,6 +22,7 @@ export default defineConfig({
         'src/app/layout.tsx', // layout is a visual thing, not worth testing through unit tests
         'src/app/**/page.tsx', // pages are all layout and visual components
         'src/hooks/use-mobile.ts', // shadcn sidebar helper
+
         'src/lib/supabase/client.ts', // client and server are both boilerplate while proxy is actually manually modified
         'src/lib/supabase/server.ts',
         'src/app/callback/**/*.{ts,tsx}', // auth callback page is just a redirect and will be tested through e2e tests
@@ -32,6 +33,8 @@ export default defineConfig({
         'src/types/**/*.{ts,tsx}', // types are not worth testing
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
+        'src/lib/routes.ts', // nothing really here to test besides checking url when going to distinct posts
+        'src/lib/mock-user.ts', // mock user is only used in e2e tests, not worth testing through unit tests
       ],
       reporter: ['text', 'html', 'lcov'],
       reportOnFailure: true,
