@@ -2,6 +2,7 @@ import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
 import { Providers } from './providers';
 import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppHeader } from '@/components/app-header';
