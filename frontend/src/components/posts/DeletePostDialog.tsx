@@ -35,7 +35,7 @@ export function DeletePostDialog({
           <AlertDialogTitle>Delete this post?</AlertDialogTitle>
           <AlertDialogDescription>
             This will permanently remove your post about {post?.problemName}.
-            This can&apos;t be undone.
+            This can't be undone.
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>

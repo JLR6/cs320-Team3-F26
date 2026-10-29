@@ -188,7 +188,7 @@ export function PostDetailView({ postId, currentUserId }: PostDetailViewProps) {
       {error && <p className="text-destructive">{error}</p>}
       {!loading && !error && !post && (
         <p className="text-muted-foreground">
-          This post doesn&apos;t exist or was deleted.
+          This post doesn't exist or was deleted.
         </p>
       )}
 
