@@ -1,9 +1,18 @@
+/**
+ * Tests for the request-body validation in family.dto.ts.
+ *
+ * These are plain functions, so nothing is faked: each test passes a body in and checks
+ * either the cleaned-up result (defaults filled in, text trimmed) or that a 400
+ * BadRequestException is thrown. Rejection cases use it.each tables so every rule
+ * (missing name, out-of-range counts, unknown fields, ...) is listed in one place.
+ */
 import { BadRequestException } from '@nestjs/common';
 import { describe, expect, it } from 'vitest';
-import { parseAddOwner, parseCreateFamily, parseUpdateFamily } from './family.dto';
+import { parseUserIdBody, parseCreateFamily, parseUpdateFamily } from './family.dto';
 
 const USER_ID = '22222222-2222-4222-8222-222222222222';
 
+// POST /families body: name required, other fields get defaults.
 describe('parseCreateFamily', () => {
   it('accepts a full family and trims text', () => {
     expect(
@@ -77,6 +86,7 @@ describe('parseCreateFamily', () => {
   });
 });
 
+// PATCH /families/:familyId body: any non-empty subset, no defaults.
 describe('parseUpdateFamily', () => {
   it('accepts any subset of fields', () => {
     expect(parseUpdateFamily({ required_hard: 2 })).toEqual({ required_hard: 2 });
@@ -102,9 +112,14 @@ describe('parseUpdateFamily', () => {
   });
 });
 
-describe('parseAddOwner', () => {
+// { user_id } body for transferring ownership and adding admins.
+describe('parseUserIdBody', () => {
   it('accepts a user_id UUID', () => {
-    expect(parseAddOwner({ user_id: USER_ID })).toEqual({ user_id: USER_ID });
+    expect(parseUserIdBody({ user_id: USER_ID })).toEqual({ user_id: USER_ID });
+  });
+
+  it('names the unsupported field in the error message', () => {
+    expect(() => parseUserIdBody({ user_id: USER_ID, role: 'admin' })).toThrow('Unsupported field: role');
   });
 
   it.each([
@@ -115,6 +130,6 @@ describe('parseAddOwner', () => {
     ['a numeric user_id', { user_id: 42 }],
     ['an extra field', { user_id: USER_ID, family_id: USER_ID }],
   ])('rejects %s', (_label, body) => {
-    expect(() => parseAddOwner(body)).toThrow(BadRequestException);
+    expect(() => parseUserIdBody(body)).toThrow(BadRequestException);
   });
 });

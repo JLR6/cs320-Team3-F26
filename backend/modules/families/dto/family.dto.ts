@@ -32,8 +32,8 @@ export interface CreateFamilyDto {
   punishment_decription: string;
 }
 
-/** POST /families/:familyId/owners body after validation. */
-export interface AddOwnerDto {
+/** Body for transferring ownership or adding an admin: `{ "user_id": "<uuid>" }`. */
+export interface UserIdDto {
   user_id: string;
 }
 
@@ -100,7 +100,7 @@ function parseFields(body: Record<string, unknown>): UpdateFamilyDto {
 
 /**
  * Validates a POST /families body. `name` is required. The other columns are NOT NULL in
- * the database, so missing ones default to 0 (counts) or '' (text) and the owner can set
+ * the database, so missing ones default to 0 (counts) or '' (text) and the owner or an admin can set
  * them later with PATCH.
  */
 export function parseCreateFamily(body: unknown): CreateFamilyDto {
@@ -129,13 +129,16 @@ export function parseUpdateFamily(body: unknown): UpdateFamilyDto {
   return parseFields(body);
 }
 
-/** Validates a POST /families/:familyId/owners body: exactly `{ "user_id": "<uuid>" }`. */
-export function parseAddOwner(body: unknown): AddOwnerDto {
+/**
+ * Validates a body that names one user: exactly `{ "user_id": "<uuid>" }`.
+ * Used by PUT /families/:familyId/owner (transfer) and POST /families/:familyId/admins.
+ */
+export function parseUserIdBody(body: unknown): UserIdDto {
   if (!isPlainObject(body)) {
-    throw new BadRequestException('Provide an owner object');
+    throw new BadRequestException('Provide an object with user_id');
   }
   for (const field of Object.keys(body)) {
-    if (field !== 'user_id') throw new BadRequestException(`Unsupported owner field: ${field}`);
+    if (field !== 'user_id') throw new BadRequestException(`Unsupported field: ${field}`);
   }
   if (typeof body.user_id !== 'string' || !UUID.test(body.user_id)) {
     throw new BadRequestException('user_id must be a UUID');

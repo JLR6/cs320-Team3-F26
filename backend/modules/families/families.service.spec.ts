@@ -1,3 +1,14 @@
+/**
+ * Unit tests for FamiliesService.
+ *
+ * Supabase talks to the database over HTTP, so instead of a real database these tests
+ * replace the global `fetch` with a fake (fetchMock) and queue up the responses Supabase
+ * would send. Each test then checks two things: the request the service sent (URL, method,
+ * body) and how it handled the response (returned data or the right HTTP exception).
+ *
+ * Every service method first asks Supabase Auth who the token belongs to, so most tests
+ * queue a "logged in" response before the database response (see loggedIn()).
+ */
 import {
   BadRequestException,
   ConflictException,
@@ -31,6 +42,7 @@ describe('FamiliesService', () => {
     updated_at: '2026-10-29T12:00:00',
   };
   const owner = { family_id: FAMILY_ID, user_id: OTHER_ID, created_at: null, updated_at: null };
+  const admin = { family_id: FAMILY_ID, user_id: OTHER_ID, created_at: null };
   const createInput = {
     name: 'Graph Grinders',
     required_easy: 3,
@@ -40,11 +52,15 @@ describe('FamiliesService', () => {
     punishment_decription: 'Loser explains a Hard',
   };
 
-  // Every service method first asks Supabase Auth who the token belongs to.
+  /** Queues Supabase Auth's answer to "who is this token?". */
   const loggedIn = () => fetchMock.mockResolvedValueOnce(Response.json({ id: USER_ID }));
+  /** A database error response with the given Postgres/custom code. */
   const dbError = (code: string, status = 400) =>
     Response.json({ message: 'internal details', code }, { status });
+  /** What a database function that returns nothing (void) sends back. */
+  const noContent = () => new Response(null, { status: 204 });
 
+  /** The most recent request the service sent, decoded for easy checking. */
   function lastRequest() {
     const [input, options] = fetchMock.mock.calls.at(-1)!;
     return {
@@ -72,7 +88,7 @@ describe('FamiliesService', () => {
     it('rejects a token Supabase Auth refuses', async () => {
       fetchMock.mockResolvedValueOnce(Response.json({ message: 'Invalid token' }, { status: 401 }));
       await expect(service.findAll(TOKEN)).rejects.toBeInstanceOf(UnauthorizedException);
-      expect(fetchMock).toHaveBeenCalledOnce();
+      expect(fetchMock).toHaveBeenCalledOnce(); // database never queried
     });
 
     it('rejects an auth response with no user id', async () => {
@@ -80,7 +96,7 @@ describe('FamiliesService', () => {
       await expect(service.findAll(TOKEN)).rejects.toBeInstanceOf(UnauthorizedException);
     });
 
-    it('queries the database as the logged-in user', async () => {
+    it('queries the database as the logged-in user so RLS applies', async () => {
       loggedIn();
       fetchMock.mockResolvedValueOnce(Response.json([family]));
       await service.findAll(TOKEN);
@@ -182,11 +198,11 @@ describe('FamiliesService', () => {
       expect(req.body).toEqual({ name: 'Renamed', updated_at: expect.any(String) });
     });
 
-    it('returns 404 when no row was updated (not found or not an owner)', async () => {
+    it('returns 404 when no row was updated (not found, or not the owner/an admin)', async () => {
       loggedIn();
       fetchMock.mockResolvedValueOnce(Response.json(null));
       await expect(service.update(TOKEN, FAMILY_ID, { name: 'X' })).rejects.toThrow(
-        new NotFoundException('Family not found, or only owners can edit it'),
+        new NotFoundException('Family not found, or only the owner and admins can edit it'),
       );
     });
 
@@ -202,7 +218,7 @@ describe('FamiliesService', () => {
   describe('remove', () => {
     it('calls delete_family with the family id', async () => {
       loggedIn();
-      fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+      fetchMock.mockResolvedValueOnce(noContent());
       await expect(service.remove(TOKEN, FAMILY_ID)).resolves.toBeUndefined();
 
       const req = lastRequest();
@@ -212,16 +228,67 @@ describe('FamiliesService', () => {
     });
   });
 
-  describe('findOwners', () => {
-    it('checks the family is visible, then lists owners oldest first', async () => {
+  describe('findOwner', () => {
+    it('checks the family is visible, then returns its owner', async () => {
       loggedIn();
       fetchMock
         .mockResolvedValueOnce(Response.json([family]))
         .mockResolvedValueOnce(Response.json([owner]));
-      await expect(service.findOwners(TOKEN, FAMILY_ID)).resolves.toEqual([owner]);
+      await expect(service.findOwner(TOKEN, FAMILY_ID)).resolves.toEqual(owner);
 
       const req = lastRequest();
       expect(req.url.pathname).toBe('/rest/v1/family_owners');
+      expect(req.url.searchParams.get('family_id')).toBe(`eq.${FAMILY_ID}`);
+    });
+
+    it('returns 404 when the user is not a member (owner never queried)', async () => {
+      loggedIn();
+      fetchMock.mockResolvedValueOnce(Response.json([]));
+      await expect(service.findOwner(TOKEN, FAMILY_ID)).rejects.toThrow(new NotFoundException('Family not found'));
+      expect(fetchMock).toHaveBeenCalledTimes(2); // auth + family check only
+    });
+
+    it('returns 404 if the family somehow has no owner row', async () => {
+      loggedIn();
+      fetchMock
+        .mockResolvedValueOnce(Response.json([family]))
+        .mockResolvedValueOnce(Response.json([]));
+      await expect(service.findOwner(TOKEN, FAMILY_ID)).rejects.toThrow(
+        new NotFoundException('Family owner not found'),
+      );
+    });
+
+    it('returns 500 when the owner query fails', async () => {
+      loggedIn();
+      fetchMock
+        .mockResolvedValueOnce(Response.json([family]))
+        .mockResolvedValueOnce(dbError('XX000', 500));
+      await expect(service.findOwner(TOKEN, FAMILY_ID)).rejects.toBeInstanceOf(InternalServerErrorException);
+    });
+  });
+
+  describe('transferOwnership', () => {
+    it('calls transfer_family_ownership and returns the new owner row', async () => {
+      loggedIn();
+      fetchMock.mockResolvedValueOnce(Response.json(owner));
+      await expect(service.transferOwnership(TOKEN, FAMILY_ID, OTHER_ID)).resolves.toEqual(owner);
+
+      const req = lastRequest();
+      expect(req.url.pathname).toBe('/rest/v1/rpc/transfer_family_ownership');
+      expect(req.body).toEqual({ p_family_id: FAMILY_ID, p_new_owner_id: OTHER_ID });
+    });
+  });
+
+  describe('findAdmins', () => {
+    it('checks the family is visible, then lists admins oldest first', async () => {
+      loggedIn();
+      fetchMock
+        .mockResolvedValueOnce(Response.json([family]))
+        .mockResolvedValueOnce(Response.json([admin]));
+      await expect(service.findAdmins(TOKEN, FAMILY_ID)).resolves.toEqual([admin]);
+
+      const req = lastRequest();
+      expect(req.url.pathname).toBe('/rest/v1/family_admins');
       expect(req.url.searchParams.get('family_id')).toBe(`eq.${FAMILY_ID}`);
       expect(req.url.searchParams.get('order')).toBe('created_at.asc');
     });
@@ -229,52 +296,65 @@ describe('FamiliesService', () => {
     it('returns 404 instead of an empty list when the user is not a member', async () => {
       loggedIn();
       fetchMock.mockResolvedValueOnce(Response.json([]));
-      await expect(service.findOwners(TOKEN, FAMILY_ID)).rejects.toBeInstanceOf(NotFoundException);
-      expect(fetchMock).toHaveBeenCalledTimes(2); // auth + family check, owners never queried
+      await expect(service.findAdmins(TOKEN, FAMILY_ID)).rejects.toBeInstanceOf(NotFoundException);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
     });
 
-    it('returns 500 when the owners query fails', async () => {
+    it('returns 500 when the admins query fails', async () => {
       loggedIn();
       fetchMock
         .mockResolvedValueOnce(Response.json([family]))
         .mockResolvedValueOnce(dbError('XX000', 500));
-      await expect(service.findOwners(TOKEN, FAMILY_ID)).rejects.toBeInstanceOf(
-        InternalServerErrorException,
-      );
+      await expect(service.findAdmins(TOKEN, FAMILY_ID)).rejects.toBeInstanceOf(InternalServerErrorException);
     });
   });
 
-  describe('addOwner', () => {
-    it('calls add_family_owner and returns the new owner row', async () => {
+  describe('addAdmin', () => {
+    it('calls add_family_admin and returns the new admin row', async () => {
       loggedIn();
-      fetchMock.mockResolvedValueOnce(Response.json(owner));
-      await expect(service.addOwner(TOKEN, FAMILY_ID, OTHER_ID)).resolves.toEqual(owner);
+      fetchMock.mockResolvedValueOnce(Response.json(admin));
+      await expect(service.addAdmin(TOKEN, FAMILY_ID, OTHER_ID)).resolves.toEqual(admin);
 
       const req = lastRequest();
-      expect(req.url.pathname).toBe('/rest/v1/rpc/add_family_owner');
+      expect(req.url.pathname).toBe('/rest/v1/rpc/add_family_admin');
       expect(req.body).toEqual({ p_family_id: FAMILY_ID, p_user_id: OTHER_ID });
     });
   });
 
-  describe('removeOwner', () => {
-    it('calls remove_family_owner', async () => {
+  describe('removeAdmin', () => {
+    it('calls remove_family_admin', async () => {
       loggedIn();
-      fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
-      await expect(service.removeOwner(TOKEN, FAMILY_ID, OTHER_ID)).resolves.toBeUndefined();
+      fetchMock.mockResolvedValueOnce(noContent());
+      await expect(service.removeAdmin(TOKEN, FAMILY_ID, OTHER_ID)).resolves.toBeUndefined();
 
       const req = lastRequest();
-      expect(req.url.pathname).toBe('/rest/v1/rpc/remove_family_owner');
+      expect(req.url.pathname).toBe('/rest/v1/rpc/remove_family_admin');
+      expect(req.body).toEqual({ p_family_id: FAMILY_ID, p_user_id: OTHER_ID });
+    });
+  });
+
+  describe('removeMember', () => {
+    it('calls remove_family_member', async () => {
+      loggedIn();
+      fetchMock.mockResolvedValueOnce(noContent());
+      await expect(service.removeMember(TOKEN, FAMILY_ID, OTHER_ID)).resolves.toBeUndefined();
+
+      const req = lastRequest();
+      expect(req.url.pathname).toBe('/rest/v1/rpc/remove_family_member');
       expect(req.body).toEqual({ p_family_id: FAMILY_ID, p_user_id: OTHER_ID });
     });
   });
 
   // Errors raised by the database functions (see 20261029120000_family_endpoints.sql).
+  // Every method that calls a function must map each code the same way.
   describe('database function errors', () => {
     const calls = {
       create: (s: FamiliesService) => s.create(TOKEN, createInput),
       remove: (s: FamiliesService) => s.remove(TOKEN, FAMILY_ID),
-      addOwner: (s: FamiliesService) => s.addOwner(TOKEN, FAMILY_ID, OTHER_ID),
-      removeOwner: (s: FamiliesService) => s.removeOwner(TOKEN, FAMILY_ID, OTHER_ID),
+      transferOwnership: (s: FamiliesService) => s.transferOwnership(TOKEN, FAMILY_ID, OTHER_ID),
+      addAdmin: (s: FamiliesService) => s.addAdmin(TOKEN, FAMILY_ID, OTHER_ID),
+      removeAdmin: (s: FamiliesService) => s.removeAdmin(TOKEN, FAMILY_ID, OTHER_ID),
+      removeMember: (s: FamiliesService) => s.removeMember(TOKEN, FAMILY_ID, OTHER_ID),
     };
 
     it.each([
@@ -282,9 +362,10 @@ describe('FamiliesService', () => {
       ['42501', ForbiddenException],
       ['LMF01', ConflictException],
       ['LMF02', NotFoundException],
-      ['LMF03', BadRequestException],
+      ['LMF03', NotFoundException],
       ['LMF04', NotFoundException],
-      ['LMF05', ConflictException],
+      ['LMF05', BadRequestException],
+      ['LMF06', BadRequestException],
       ['23505', ConflictException],
     ] as const)('maps code %s for every function call', async (code, exception) => {
       for (const call of Object.values(calls)) {
@@ -306,20 +387,20 @@ describe('FamiliesService', () => {
       }
     });
 
-    it('gives clear messages for owner rules', async () => {
-      loggedIn();
-      fetchMock.mockResolvedValueOnce(dbError('LMF03'));
-      await expect(calls.addOwner(service)).rejects.toThrow(
-        'The new owner must already be a member of the family',
-      );
-
-      loggedIn();
-      fetchMock.mockResolvedValueOnce(dbError('LMF05'));
-      await expect(calls.removeOwner(service)).rejects.toThrow(/at least one owner/);
-
-      loggedIn();
-      fetchMock.mockResolvedValueOnce(dbError('23505'));
-      await expect(calls.addOwner(service)).rejects.toThrow('That user is already an owner of this family');
+    it('gives clear messages for the role rules', async () => {
+      const cases = [
+        ['42501', calls.remove, 'Your role in this family does not allow this'],
+        ['LMF03', calls.transferOwnership, 'That user is not a member of this family'],
+        ['LMF04', calls.removeAdmin, 'That user is not an admin of this family'],
+        ['LMF05', calls.addAdmin, "This action isn't allowed on the family owner"],
+        ['LMF06', calls.removeMember, 'To remove yourself, leave the family instead'],
+        ['23505', calls.addAdmin, 'That user is already an admin of this family'],
+      ] as const;
+      for (const [code, call, message] of cases) {
+        loggedIn();
+        fetchMock.mockResolvedValueOnce(dbError(code));
+        await expect(call(service)).rejects.toThrow(message);
+      }
     });
   });
 });

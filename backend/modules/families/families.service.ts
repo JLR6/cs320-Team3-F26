@@ -1,18 +1,18 @@
 /**
- * Database logic for families and family owners.
+ * Database logic for families, their owner, their admins, and removing members.
  *
- * Tables (root supabase/migrations):
- *   - public.families       one row per family (name, weekly targets, reward/punishment)
- *   - public.family_owners  (family_id, user_id) for each owner
- *   - public.user_families  memberships; managed by modules/user-families (join/leave/progress)
+ * Roles (see supabase/migrations/20261029120000_family_endpoints.sql):
+ *   - owner   exactly one per family (public.family_owners). Can delete the family, make or
+ *             remove admins, and transfer ownership. Must transfer before leaving.
+ *   - admin   any number (public.family_admins). Can edit details, manage invites, remove
+ *             regular members, and (later) set up weekly challenges.
+ *   - member  everyone in public.user_families. Joining/leaving is modules/user-families.
  *
  * Every query uses a Supabase client acting as the logged-in user (forUser), so the
- * database's Row Level Security (RLS) rules apply:
- *   - members can see their families and the family's owners
- *   - owners can update family details
- * Multi-step operations (create, delete, add/remove owner) call database functions from
- * 20261029120000_family_endpoints.sql. Each function checks the rules (5-family limit,
- * owners only, keep at least one owner) and does all its writes in one transaction.
+ * database's Row Level Security (RLS) rules apply: members can see their family, its owner
+ * and its admins; the owner and admins can update family details.
+ * Multi-step or role-restricted changes call database functions from the migration above.
+ * Each function checks the rules and does all its writes in one transaction.
  * RLS docs: https://supabase.com/docs/guides/database/postgres/row-level-security
  * Calling functions: https://supabase.com/docs/reference/javascript/rpc
  *
@@ -46,12 +46,19 @@ export interface FamilyRecord {
   updated_at: string | null;
 }
 
-/** One row of public.family_owners. */
+/** One row of public.family_owners (one per family). */
 export interface FamilyOwnerRecord {
   family_id: string;
   user_id: string;
   created_at: string | null;
   updated_at: string | null;
+}
+
+/** One row of public.family_admins. */
+export interface FamilyAdminRecord {
+  family_id: string;
+  user_id: string;
+  created_at: string | null;
 }
 
 /** Shape of a Supabase/PostgREST error we care about. */
@@ -64,13 +71,14 @@ interface DbError {
 // is documented at the top of 20261029120000_family_endpoints.sql.
 // Postgres codes: https://www.postgresql.org/docs/current/errcodes-appendix.html
 const NOT_LOGGED_IN = '28000';
-const NOT_AN_OWNER = '42501'; // Postgres "insufficient_privilege"
-const UNIQUE_VIOLATION = '23505'; // e.g. user is already an owner
+const ROLE_NOT_ALLOWED = '42501'; // Postgres "insufficient_privilege"
+const UNIQUE_VIOLATION = '23505'; // e.g. user is already an admin
 const FAMILY_LIMIT = 'LMF01';
 const FAMILY_NOT_FOUND = 'LMF02';
-const OWNER_NOT_MEMBER = 'LMF03';
-const OWNER_NOT_FOUND = 'LMF04';
-const LAST_OWNER = 'LMF05';
+const NOT_A_MEMBER = 'LMF03';
+const NOT_AN_ADMIN = 'LMF04';
+const NOT_ALLOWED_ON_OWNER = 'LMF05';
+const USE_LEAVE = 'LMF06';
 
 // Same cap as posts and user-families. A user can be in at most 5 families anyway.
 const MAX_RESULTS = 50;
@@ -79,12 +87,14 @@ const MAX_RESULTS = 50;
 export class FamiliesService {
   constructor(@Inject(SupabaseService) private readonly supabase: SupabaseService) {}
 
+  // ---------------------------------------------------------------- families
+
   /**
    * Creates a family. The creator automatically becomes its owner and a member.
    * Fails with 409 if they're already in 5 families.
    */
   async create(accessToken: string, input: CreateFamilyDto): Promise<FamilyRecord> {
-    const { client } = await this.getUserClient(accessToken);
+    const client = await this.getUserClient(accessToken);
     // Parameter names match create_family(...) in the migration.
     const { data, error, status } = await client.rpc('create_family', {
       p_name: input.name,
@@ -101,7 +111,7 @@ export class FamiliesService {
 
   /** Lists the families the user belongs to, newest first. RLS hides all others. */
   async findAll(accessToken: string): Promise<FamilyRecord[]> {
-    const { client } = await this.getUserClient(accessToken);
+    const client = await this.getUserClient(accessToken);
     const { data, error, status } = await client
       .from('families').select('*')
       .order('created_at', { ascending: false })
@@ -118,17 +128,17 @@ export class FamiliesService {
    * families you're not in, so we can't (and shouldn't) tell those cases apart.
    */
   async findOne(accessToken: string, familyId: string): Promise<FamilyRecord> {
-    const { client } = await this.getUserClient(accessToken);
+    const client = await this.getUserClient(accessToken);
     return this.findVisibleFamily(client, familyId);
   }
 
   /**
-   * Updates family details (owners only). The RLS policy "Family owners can update family
-   * details" makes the update match zero rows for non-owners, which we report as 404.
-   * updated_at is set here because the table has no trigger that updates it.
+   * Updates family details (owner or admins). The RLS policy "Family owners and admins can
+   * update family details" makes the update match zero rows for anyone else, which we
+   * report as 404. updated_at is set here because the table has no trigger for it.
    */
   async update(accessToken: string, familyId: string, input: UpdateFamilyDto): Promise<FamilyRecord> {
-    const { client } = await this.getUserClient(accessToken);
+    const client = await this.getUserClient(accessToken);
     const { data, error, status } = await client
       .from('families')
       .update({ ...input, updated_at: new Date().toISOString() })
@@ -137,57 +147,105 @@ export class FamiliesService {
       .maybeSingle<FamilyRecord>();
 
     if (error) this.fail(status, 'Unable to update family');
-    if (!data) throw new NotFoundException('Family not found, or only owners can edit it');
+    if (!data) throw new NotFoundException('Family not found, or only the owner and admins can edit it');
     return data;
   }
 
-  /** Deletes a family and its members, owners, messages and invites (owners only). */
+  /** Deletes a family and its members, admins, owner, messages and invites (owner only). */
   async remove(accessToken: string, familyId: string): Promise<void> {
-    const { client } = await this.getUserClient(accessToken);
+    const client = await this.getUserClient(accessToken);
     const { error, status } = await client.rpc('delete_family', { p_family_id: familyId });
     if (error) this.failFunction(error, status, 'Unable to delete family');
   }
 
-  /** Lists a family's owners (members only). 404 if the family isn't visible to the user. */
-  async findOwners(accessToken: string, familyId: string): Promise<FamilyOwnerRecord[]> {
-    const { client } = await this.getUserClient(accessToken);
-    // Check the family first; otherwise a non-member would get an empty list instead of 404.
+  // ---------------------------------------------------------------- owner
+
+  /** Returns the family's owner (members only). 404 if the family isn't visible. */
+  async findOwner(accessToken: string, familyId: string): Promise<FamilyOwnerRecord> {
+    const client = await this.getUserClient(accessToken);
+    // Check the family first so non-members get 404 rather than an empty result.
     await this.findVisibleFamily(client, familyId);
 
     const { data, error, status } = await client
       .from('family_owners').select('*')
       .eq('family_id', familyId)
-      .order('created_at', { ascending: true }) // original owner first
-      .returns<FamilyOwnerRecord[]>();
+      .maybeSingle<FamilyOwnerRecord>();
 
-    if (error) this.fail(status, 'Unable to fetch family owners');
+    if (error) this.fail(status, 'Unable to fetch family owner');
+    if (!data) throw new NotFoundException('Family owner not found');
     return data;
   }
 
-  /** Makes an existing member an owner (owners only). */
-  async addOwner(accessToken: string, familyId: string, userId: string): Promise<FamilyOwnerRecord> {
-    const { client } = await this.getUserClient(accessToken);
-    const { data, error, status } = await client.rpc('add_family_owner', {
+  /**
+   * Makes another member the owner (current owner only). The old owner becomes a regular
+   * member, which is what lets them leave the family afterwards.
+   */
+  async transferOwnership(accessToken: string, familyId: string, newOwnerId: string): Promise<FamilyOwnerRecord> {
+    const client = await this.getUserClient(accessToken);
+    const { data, error, status } = await client.rpc('transfer_family_ownership', {
       p_family_id: familyId,
-      p_user_id: userId,
+      p_new_owner_id: newOwnerId,
     });
 
-    if (error) this.failFunction(error, status, 'Unable to add family owner');
+    if (error) this.failFunction(error, status, 'Unable to transfer ownership');
     return data as FamilyOwnerRecord;
   }
 
-  /**
-   * Removes an owner; they stay a member (owners only). Owners can remove themselves to
-   * step down, but a family must keep at least one owner.
-   */
-  async removeOwner(accessToken: string, familyId: string, userId: string): Promise<void> {
-    const { client } = await this.getUserClient(accessToken);
-    const { error, status } = await client.rpc('remove_family_owner', {
+  // ---------------------------------------------------------------- admins
+
+  /** Lists the family's admins, oldest first (members only). 404 if the family isn't visible. */
+  async findAdmins(accessToken: string, familyId: string): Promise<FamilyAdminRecord[]> {
+    const client = await this.getUserClient(accessToken);
+    await this.findVisibleFamily(client, familyId);
+
+    const { data, error, status } = await client
+      .from('family_admins').select('*')
+      .eq('family_id', familyId)
+      .order('created_at', { ascending: true })
+      .returns<FamilyAdminRecord[]>();
+
+    if (error) this.fail(status, 'Unable to fetch family admins');
+    return data;
+  }
+
+  /** Makes a member an admin (owner only). */
+  async addAdmin(accessToken: string, familyId: string, userId: string): Promise<FamilyAdminRecord> {
+    const client = await this.getUserClient(accessToken);
+    const { data, error, status } = await client.rpc('add_family_admin', {
       p_family_id: familyId,
       p_user_id: userId,
     });
-    if (error) this.failFunction(error, status, 'Unable to remove family owner');
+
+    if (error) this.failFunction(error, status, 'Unable to add family admin');
+    return data as FamilyAdminRecord;
   }
+
+  /** Turns an admin back into a regular member (owner only). */
+  async removeAdmin(accessToken: string, familyId: string, userId: string): Promise<void> {
+    const client = await this.getUserClient(accessToken);
+    const { error, status } = await client.rpc('remove_family_admin', {
+      p_family_id: familyId,
+      p_user_id: userId,
+    });
+    if (error) this.failFunction(error, status, 'Unable to remove family admin');
+  }
+
+  // ---------------------------------------------------------------- members
+
+  /**
+   * Removes someone from the family. The owner can remove anyone but themselves; admins can
+   * remove regular members only. To remove yourself, use leave (DELETE /user-families/:familyId).
+   */
+  async removeMember(accessToken: string, familyId: string, userId: string): Promise<void> {
+    const client = await this.getUserClient(accessToken);
+    const { error, status } = await client.rpc('remove_family_member', {
+      p_family_id: familyId,
+      p_user_id: userId,
+    });
+    if (error) this.failFunction(error, status, 'Unable to remove family member');
+  }
+
+  // ---------------------------------------------------------------- helpers
 
   /** Returns the family if the user can see it (i.e. is a member), otherwise throws 404. */
   private async findVisibleFamily(client: SupabaseClient, familyId: string): Promise<FamilyRecord> {
@@ -203,12 +261,13 @@ export class FamiliesService {
   /**
    * Checks the Bearer token with Supabase Auth and returns a client that acts as that user.
    * Same approach as posts and user-families.
+   * Docs: https://supabase.com/docs/reference/javascript/auth-getuser
    */
-  private async getUserClient(accessToken: string) {
+  private async getUserClient(accessToken: string): Promise<SupabaseClient> {
     const client = this.supabase.forUser(accessToken);
     const { data, error } = await client.auth.getUser(accessToken);
     if (error || !data.user?.id) throw new UnauthorizedException('Invalid or expired access token');
-    return { userId: data.user.id, client };
+    return client;
   }
 
   /**
@@ -219,22 +278,22 @@ export class FamiliesService {
     switch (error.code) {
       case NOT_LOGGED_IN:
         throw new UnauthorizedException('Invalid or expired access token');
-      case NOT_AN_OWNER:
-        throw new ForbiddenException('Only family owners can do this');
+      case ROLE_NOT_ALLOWED:
+        throw new ForbiddenException('Your role in this family does not allow this');
       case FAMILY_LIMIT:
         throw new ConflictException('You can belong to at most 5 families');
       case FAMILY_NOT_FOUND:
         throw new NotFoundException('Family not found');
-      case OWNER_NOT_MEMBER:
-        throw new BadRequestException('The new owner must already be a member of the family');
-      case OWNER_NOT_FOUND:
-        throw new NotFoundException('That user is not an owner of this family');
-      case LAST_OWNER:
-        throw new ConflictException(
-          'A family must keep at least one owner. Make someone else an owner first, or delete the family.',
-        );
+      case NOT_A_MEMBER:
+        throw new NotFoundException('That user is not a member of this family');
+      case NOT_AN_ADMIN:
+        throw new NotFoundException('That user is not an admin of this family');
+      case NOT_ALLOWED_ON_OWNER:
+        throw new BadRequestException("This action isn't allowed on the family owner");
+      case USE_LEAVE:
+        throw new BadRequestException('To remove yourself, leave the family instead');
       case UNIQUE_VIOLATION:
-        throw new ConflictException('That user is already an owner of this family');
+        throw new ConflictException('That user is already an admin of this family');
       default:
         this.fail(status, fallbackMessage);
     }
