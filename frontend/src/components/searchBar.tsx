@@ -28,7 +28,7 @@ export default function SearchBar() {
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // Filter tags based on what the user types
- const filteredTags = availableTags.filter((tag) => {
+  const filteredTags = availableTags.filter((tag) => {
   const searchTerms = search.toLowerCase().trim().split(/\s+/);
   return (
     selectedTags.includes(tag) ||
