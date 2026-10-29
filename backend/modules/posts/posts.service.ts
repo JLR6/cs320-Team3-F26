@@ -12,6 +12,7 @@ import { SupabaseService } from '../../src/integrations/supabase/supabase.servic
 import { LeetCodeService } from '../problems/leetcode.service';
 import { ProblemsService } from '../problems/problems.service';
 import type { CreatePostDto, UpdatePostDto } from './dto/post-content.dto';
+import { encodePostCursor, type PostPagination } from './dto/post-pagination.dto';
 
 export interface PostRecord {
   post_id: string;
@@ -25,6 +26,12 @@ export interface PostRecord {
   updated_at: string | null;
 }
 
+export interface PostsPage {
+  posts: PostRecord[];
+  nextCursor: string | null;
+  hasMore: boolean;
+}
+
 @Injectable()
 export class PostsService {
   constructor(
@@ -33,22 +40,59 @@ export class PostsService {
     @Inject(LeetCodeService) private readonly leetcode: LeetCodeService,
   ) {}
 
-  async findAll(accessToken: string) {
+  async findAll(
+    accessToken: string,
+    tags: string[] = [],
+    { cursor, limit }: PostPagination = { limit: 50 },
+  ): Promise<PostsPage> {
     const client = this.supabase.forUser(accessToken);
 
-    const { data, error, status } = await client
+    // Join problems only when filtering by their tags.
+    let query = client
       .from('posts')
-      .select('*')
-      .order('created_at', { ascending: false })
+      .select(
+        tags.length > 0
+          ? '*, problems!inner(problem_tags)'
+          : '*',
+      );
+
+    // Return posts whose problem matches ANY selected tag.
+    if (tags.length > 0) {
+      query = query.overlaps('problems.problem_tags', tags);
+    }
+
+    if (cursor) {
+      // Continue strictly after the last returned row in the same sort order.
+      if (cursor.created_at === null) {
+        query = query.is('created_at', null).lt('post_id', cursor.post_id);
+      } else {
+        query = query.or(
+          `created_at.lt.${cursor.created_at},and(created_at.eq.${cursor.created_at},post_id.lt.${cursor.post_id}),created_at.is.null`,
+        );
+      }
+    }
+
+    const { data, error, status } = await query
+      .order('created_at', { ascending: false, nullsFirst: false })
       .order('post_id', { ascending: false })
-      .limit(50)
+      // One extra row tells us whether another page exists without a count query.
+      .limit(limit + 1)
       .returns<PostRecord[]>();
 
     if (error) {
       this.fail(status, 'Unable to fetch posts');
     }
 
-    return data;
+    const rows = data ?? [];
+    const hasMore = rows.length > limit;
+    const posts = rows.slice(0, limit);
+    const lastPost = posts.at(-1);
+
+    return {
+      posts,
+      nextCursor: hasMore && lastPost ? encodePostCursor(lastPost) : null,
+      hasMore,
+    };
   }
 
   async findOne(accessToken: string, id: string): Promise<PostRecord> {
