@@ -92,7 +92,7 @@ export function PostList({
       {loading && <p className="text-muted-foreground">Loading...</p>}
       {error && (
         <p className="text-destructive">
-          Couldn&apos;t load posts. Please try again.
+          Couldn't load posts. Please try again.
         </p>
       )}
       {!loading && !error && posts.length === 0 && (
