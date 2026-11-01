@@ -157,7 +157,7 @@ export class UsersService {
             upsert: true,
         });
 
-        if (uploadError.error) {this.fail(500, 'Unable to upload new profile picture', uploadError?.data?.fullPath ?? '');}
+        if (uploadError.error) {this.fail(500, 'Unable to upload new profile picture', uploadError.error.message);}
 
         const { error: newError } = await client
             .from('users')
