@@ -9,6 +9,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../src/integrations/supabase/supabase.service';
 import { PostsService } from './posts.service';
+import { parsePostPagination } from './dto/post-pagination.dto';
 
 describe('PostsService', () => {
   const fetchMock = vi.fn<typeof fetch>();
@@ -27,27 +28,228 @@ describe('PostsService', () => {
     vi.unstubAllEnvs();
   });
 
-  it('returns posts using the requesting user token and limits results to 50', async () => {
+  it('returns a first page using the user token and requests one lookahead row', async () => {
     const posts = [{ post_id: 'post-1', post_description: 'Completed a coding problem' }];
     fetchMock.mockResolvedValueOnce(Response.json(posts));
 
-    await expect(service.findAll('user-access-token')).resolves.toEqual(posts);
+    await expect(service.findAll('user-access-token')).resolves.toEqual({
+      posts, nextCursor: null, hasMore: false,
+    });
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [input, options] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
     expect(url.pathname).toBe('/rest/v1/posts');
     expect(url.searchParams.get('select')).toBe('*');
-    expect(url.searchParams.get('limit')).toBe('50');
+    expect(url.searchParams.get('limit')).toBe('51');
+    expect(url.searchParams.get('order')).toBe('created_at.desc.nullslast,post_id.desc');
+    expect(url.searchParams.has('or')).toBe(false);
+    expect(url.searchParams.has('created_at')).toBe(false);
+    expect(url.searchParams.has('post_id')).toBe(false);
+    expect(url.searchParams.has('offset')).toBe(false);
+    expect(url.searchParams.has('problems.problem_tags')).toBe(false);
     expect(new Headers(options?.headers).get('authorization')).toBe(
       'Bearer user-access-token',
     );
   });
 
-  it('returns an empty list when no posts are visible', async () => {
+  it.each([
+    { tags: ['Array'] },
+    { tags: ['Array', 'Hash Table'] },
+  ])('uses an inner join and any-tag overlap for %j', async ({ tags }) => {
+    const posts = [{
+      post_id: 'post-1',
+      post_description: 'A matching post',
+      problems: { problem_tags: [tags[0]] },
+    }];
+    fetchMock.mockResolvedValueOnce(Response.json(posts));
+
+    await expect(service.findAll('user-access-token', tags)).resolves.toEqual({
+      posts, nextCursor: null, hasMore: false,
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [input, options] = fetchMock.mock.calls[0];
+    const url = new URL(String(input));
+    expect(url.pathname).toBe('/rest/v1/posts');
+    expect(url.searchParams.get('select')).toBe('*,problems!inner(problem_tags)');
+    // "ov" matches any selected array element; "cs" would require every tag.
+    expect(url.searchParams.get('problems.problem_tags')).toBe(`ov.{${tags.join(',')}}`);
+    expect(url.searchParams.get('order')).toBe('created_at.desc.nullslast,post_id.desc');
+    expect(url.searchParams.get('limit')).toBe('51');
+    expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-access-token');
+  });
+
+  it('does not join or filter problems when given an empty tag array', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json([]));
+    await expect(service.findAll('user-token', [])).resolves.toEqual({
+      posts: [], nextCursor: null, hasMore: false,
+    });
+    const [input] = fetchMock.mock.calls[0];
+    const url = new URL(String(input));
+    expect(url.searchParams.get('select')).toBe('*');
+    expect(url.searchParams.has('problems.problem_tags')).toBe(false);
+  });
+
+  it('returns an empty final page when no posts match the selected tags', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json([]));
+    await expect(service.findAll('user-token', ['Graph'])).resolves.toEqual({
+      posts: [], nextCursor: null, hasMore: false,
+    });
+  });
+
+  it('hides database errors when filtering by tags', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json(
+      { message: 'Private database details', code: 'XX000' }, { status: 500 },
+    ));
+    const result = service.findAll('user-token', ['Array']);
+    await expect(result).rejects.toBeInstanceOf(InternalServerErrorException);
+    await expect(result).rejects.toThrow('Unable to fetch posts');
+    await expect(result).rejects.not.toThrow('Private database details');
+  });
+
+  it('returns an empty final page when no posts are visible', async () => {
     fetchMock.mockResolvedValueOnce(Response.json([]));
 
-    await expect(service.findAll('user-access-token')).resolves.toEqual([]);
+    await expect(service.findAll('user-access-token')).resolves.toEqual({
+      posts: [], nextCursor: null, hasMore: false,
+    });
+  });
+
+  describe('cursor pagination', () => {
+    const timestamp = '2026-10-24T12:30:45.123456';
+    const rows = [3, 2, 1].map(number => ({
+      post_id: `${String(number).repeat(8)}-1111-4111-8111-111111111111`,
+      user_id: '44444444-4444-4444-8444-444444444444',
+      problem_number: 1,
+      like_count: 0,
+      post_description: 'A post',
+      user_solution: null,
+      user_time_complexity: null,
+      created_at: timestamp,
+      updated_at: timestamp,
+    }));
+
+    it('cursors from the last returned post and leaves the lookahead row for the next page', async () => {
+      fetchMock.mockResolvedValueOnce(Response.json(rows));
+      const page = await service.findAll('user-token', [], { limit: 2 });
+
+      expect(page.posts).toEqual(rows.slice(0, 2));
+      expect(page.hasMore).toBe(true);
+      expect(page.nextCursor).toEqual(expect.any(String));
+      expect(parsePostPagination(page.nextCursor).cursor).toEqual({
+        created_at: timestamp, post_id: rows[1].post_id,
+      });
+      const [input] = fetchMock.mock.calls[0];
+      expect(new URL(String(input)).searchParams.get('limit')).toBe('3');
+
+      fetchMock.mockResolvedValueOnce(Response.json([rows[2]]));
+      const nextPage = await service.findAll('user-token', [], parsePostPagination(page.nextCursor, '2'));
+
+      expect(nextPage).toEqual({ posts: [rows[2]], nextCursor: null, hasMore: false });
+      expect([...page.posts, ...nextPage.posts]).toEqual(rows);
+      const [nextInput] = fetchMock.mock.calls[1];
+      const nextUrl = new URL(String(nextInput));
+      // A strict ID comparison resumes between rows with identical timestamps.
+      expect(nextUrl.searchParams.get('or')).toBe(
+        `(created_at.lt.${timestamp},and(created_at.eq.${timestamp},post_id.lt.${rows[1].post_id}),created_at.is.null)`,
+      );
+      expect(nextUrl.searchParams.has('offset')).toBe(false);
+    });
+
+    it.each([0, 1, 2])('ends pagination when a limit-2 query returns %i rows', async count => {
+      const posts = rows.slice(0, count);
+      fetchMock.mockResolvedValueOnce(Response.json(posts));
+
+      await expect(service.findAll('user-token', [], { limit: 2 })).resolves.toEqual({
+        posts, nextCursor: null, hasMore: false,
+      });
+    });
+
+    it('supports a one-post page without skipping the second post', async () => {
+      fetchMock.mockResolvedValueOnce(Response.json(rows.slice(0, 2)));
+      const page = await service.findAll('user-token', [], { limit: 1 });
+
+      expect(page.posts).toEqual([rows[0]]);
+      expect(page.hasMore).toBe(true);
+      expect(parsePostPagination(page.nextCursor).cursor).toEqual({
+        created_at: timestamp, post_id: rows[0].post_id,
+      });
+      const [input] = fetchMock.mock.calls[0];
+      expect(new URL(String(input)).searchParams.get('limit')).toBe('2');
+    });
+
+    it('limits the default page to 50 posts with a cursor when a 51st row exists', async () => {
+      const posts = Array.from({ length: 51 }, (_, index) => ({
+        ...rows[0], post_id: `${String(51 - index).padStart(8, '0')}-1111-4111-8111-111111111111`,
+      }));
+      fetchMock.mockResolvedValueOnce(Response.json(posts));
+      const page = await service.findAll('user-token');
+
+      expect(page.posts).toEqual(posts.slice(0, 50));
+      expect(page.hasMore).toBe(true);
+      expect(parsePostPagination(page.nextCursor).cursor).toEqual({
+        created_at: timestamp, post_id: posts[49].post_id,
+      });
+    });
+
+    it('keeps any-tag filtering and nested problem tags when continuing a page', async () => {
+      const cursor = { created_at: timestamp, post_id: rows[0].post_id };
+      const filteredPosts = rows.slice(1).map(post => ({
+        ...post, problems: { problem_tags: ['Array', 'Hash Table'] },
+      }));
+      fetchMock.mockResolvedValueOnce(Response.json(filteredPosts));
+
+      await expect(service.findAll('user-token', ['Array', 'Hash Table'], { cursor, limit: 2 }))
+        .resolves.toEqual({ posts: filteredPosts, nextCursor: null, hasMore: false });
+
+      const [input, options] = fetchMock.mock.calls[0];
+      const url = new URL(String(input));
+      expect(url.searchParams.get('select')).toBe('*,problems!inner(problem_tags)');
+      expect(url.searchParams.get('problems.problem_tags')).toBe('ov.{Array,Hash Table}');
+      expect(url.searchParams.get('or')).toBe(
+        `(created_at.lt.${timestamp},and(created_at.eq.${timestamp},post_id.lt.${cursor.post_id}),created_at.is.null)`,
+      );
+      expect(url.searchParams.get('order')).toBe('created_at.desc.nullslast,post_id.desc');
+      expect(url.searchParams.get('limit')).toBe('3');
+      expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
+    });
+
+    it('continues through null timestamps using only a strict post ID boundary', async () => {
+      const nullRows = rows.map(post => ({ ...post, created_at: null }));
+      fetchMock.mockResolvedValueOnce(Response.json(nullRows));
+      const page = await service.findAll('user-token', [], { limit: 2 });
+      expect(page.hasMore).toBe(true);
+      expect(parsePostPagination(page.nextCursor).cursor).toEqual({
+        created_at: null, post_id: rows[1].post_id,
+      });
+
+      fetchMock.mockResolvedValueOnce(Response.json([nullRows[2]]));
+      await expect(service.findAll('user-token', [], parsePostPagination(page.nextCursor, '2')))
+        .resolves.toEqual({ posts: [nullRows[2]], nextCursor: null, hasMore: false });
+
+      const [input] = fetchMock.mock.calls[1];
+      const url = new URL(String(input));
+      expect(url.searchParams.get('created_at')).toBe('is.null');
+      expect(url.searchParams.get('post_id')).toBe(`lt.${rows[1].post_id}`);
+      expect(url.searchParams.has('or')).toBe(false);
+    });
+
+    it.each([
+      [401, UnauthorizedException],
+      [403, ForbiddenException],
+      [500, InternalServerErrorException],
+    ] as const)('maps a paginated database failure with status %s', async (status, exception) => {
+      fetchMock.mockResolvedValueOnce(Response.json(
+        { message: 'Private database details', code: 'TEST_ERROR' }, { status },
+      ));
+
+      const result = service.findAll('user-token', [], {
+        cursor: { created_at: timestamp, post_id: rows[0].post_id }, limit: 2,
+      });
+      await expect(result).rejects.toBeInstanceOf(exception);
+      await expect(result).rejects.not.toThrow('Private database details');
+    });
   });
 
   it('returns a generic server error when Supabase rejects the query', async () => {
