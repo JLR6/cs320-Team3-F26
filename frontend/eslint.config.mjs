@@ -7,6 +7,8 @@ export default tseslint.config(
   {
     ignores: [
       '.next/**',
+      'out/**',
+      'build/**',
       'coverage/**',
       'playwright-report/**',
       'test-results/**',
@@ -19,5 +21,12 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.browser, ...globals.node } },
     plugins: { 'react-hooks': reactHooks },
     rules: reactHooks.configs.recommended.rules,
+  },
+  {
+    settings: {
+      react: {
+        version: 'version: 19.0.0',
+      },
+    },
   },
 );
