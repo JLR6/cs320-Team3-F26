@@ -1,4 +1,4 @@
-import { Feed } from '@/components/feed';
+import { Feed } from '@/components/posts/presentation/feed';
 import { MOCK_CURRENT_USER } from '@/lib/mock-user';
 
 // Demo route for the feed.

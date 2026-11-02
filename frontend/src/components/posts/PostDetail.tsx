@@ -4,18 +4,18 @@ import { ExternalLink, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { DifficultyBadge } from './DifficultyBadge';
-import { TagBadge } from './TagBadge';
+import { DifficultyBadge } from './presentation/DifficultyBadge';
+import { TagBadge } from './presentation/TagBadge';
 import { LikeButton } from './LikeButton';
 import { CommentSection } from './CommentSection';
 import { PostActionsMenu } from './PostActionsMenu';
-import { formatTimeAgo } from '@/lib/format';
+import { formatTimeAgo } from '@/lib/utils';
 import { isHttpUrl } from '@/lib/post-utils';
 import type { Post, PostInput } from '@/types/post';
 import { PostFormDialog } from './PostFormDialog';
 import { DeletePostDialog } from './DeletePostDialog';
 import * as api from '@/lib/posts-api';
-import { FEED_PATH } from '@/lib/routes';
+import { FEED_PATH } from '@/lib/utils';
 
 interface PostDetailProps {
   post: Post;
