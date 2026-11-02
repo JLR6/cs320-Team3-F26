@@ -8,12 +8,12 @@ import {
   CardFooter,
   CardHeader,
 } from '@/components/ui/card';
-import { DifficultyBadge } from './DifficultyBadge';
-import { TagBadge } from './TagBadge';
+import { DifficultyBadge } from './presentation/DifficultyBadge';
+import { TagBadge } from './presentation/TagBadge';
 import { LikeButton } from './LikeButton';
 import { PostActionsMenu } from './PostActionsMenu';
-import { formatTimeAgo } from '@/lib/format';
-import { postPath } from '@/lib/routes';
+import { formatTimeAgo } from '@/lib/utils';
+import { postPath } from '@/lib/utils';
 import type { Post } from '@/types/post';
 
 interface PostCardProps {
