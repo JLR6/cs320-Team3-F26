@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { formatTimeAgo } from '@/lib/format';
+import { formatTimeAgo } from '@/lib/utils';
 import type { PostComment } from '@/types/post';
 
 // props are like parameters

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { PostList } from './posts/PostList';
+import { PostList } from '../PostList';
 import type { FeedType } from '@/types/feed';
 
 interface FeedProps {
