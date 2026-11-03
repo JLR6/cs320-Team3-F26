@@ -61,7 +61,52 @@ export class ProblemsService {
       throw new ConflictException(`Problem ${input.problem_number} already exists`);
     }
     if (error) throw new InternalServerErrorException('Unable to create problem');
+
+    if (input.problem_tags !== undefined) {
+      await this.saveTags(data.problem_number, input.problem_tags);
+    }
     return data;
+  }
+
+  // saves tags in the new tables when a problem is added or edited.
+  private async saveTags(problemNumber: number, tagNames: string[] | null): Promise<void> {
+    const admin = this.supabase.admin();
+    const names = [...new Set(tagNames ?? [])];
+    let tagIds: number[] = [];
+
+    // add new tags, or reuse ones that already exist.
+    if (names.length > 0) {
+      const { data, error } = await admin
+        .from('tags')
+        .upsert(names.map(tag_name => ({ tag_name })), { onConflict: 'tag_name' })
+        .select('tag_id')
+        .returns<{ tag_id: number }[]>();
+
+      if (error || !data || data.length !== names.length) {
+        throw new InternalServerErrorException('Unable to save tags');
+      }
+      tagIds = data.map(tag => tag.tag_id);
+    }
+
+    // remove the problem's old tag links.
+    const { error: deleteError } = await admin
+      .from('problem_tags')
+      .delete()
+      .eq('problem_number', problemNumber);
+
+    if (deleteError) {
+      throw new InternalServerErrorException('Unable to update problem tags');
+    }
+
+    // link the problem to its current tags.
+    if (tagIds.length > 0) {
+      const links = tagIds.map(tag_id => ({ problem_number: problemNumber, tag_id }));
+      const { error } = await admin.from('problem_tags').insert(links);
+
+      if (error) {
+        throw new InternalServerErrorException('Unable to link problem tags');
+      }
+    }
   }
 
   // Used by the posts flow: return the problem if it exists, otherwise create it.
@@ -89,6 +134,10 @@ export class ProblemsService {
 
     if (error) throw new InternalServerErrorException('Unable to update problem');
     if (!data) throw new NotFoundException('Problem not found');
+
+    if (input.problem_tags !== undefined) {
+      await this.saveTags(problemNumber, input.problem_tags);
+    }
     return data;
   }
 
