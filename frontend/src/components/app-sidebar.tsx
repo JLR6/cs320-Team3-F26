@@ -186,7 +186,11 @@ function CreatePostButton() {
   const { openCreate } = useCreatePost();
 
   return (
-    <SidebarMenuButton variant="primaryRound" className="pl-0" onClick={openCreate}>
+    <SidebarMenuButton
+      variant="primaryRound"
+      className="pl-0"
+      onClick={openCreate}
+    >
       <div className="flex items-center gap-3 -ml-4.5">
         <Plus />
         {ActionTypeMain.CreatePost}
