@@ -14,6 +14,7 @@ beforeEach(async () => {
 
 // the api functions wait on a timer to act like a slow network
 // this skips the waiting and gives back the result
+// needed for every call to the api functions, so they can be used in expect statements
 async function done<T>(promise: Promise<T>) {
   await vi.runAllTimersAsync();
   return promise;
@@ -32,6 +33,7 @@ const input = {
 } as PostInput;
 
 // makes one post, and optionally changes some of its fields
+// the use of partial basically lets you pick and choose some fields to change and the rest are whatever we had in our input variable
 const seed = (changes: Partial<PostInput> = {}) =>
   done(api.createPost({ ...input, ...changes }));
 
@@ -63,9 +65,11 @@ describe('posts-api', () => {
   it('toggleLike likes, then unlikes', async () => {
     const post = await seed();
     const liked = await done(api.toggleLike(post.id));
-    expect([liked.likedByMe, liked.likeCount]).toEqual([true, 1]);
+    expect(liked.likedByMe).toBe(true);
+    expect(liked.likeCount).toBe(1);
     const unliked = await done(api.toggleLike(post.id));
-    expect([unliked.likedByMe, unliked.likeCount]).toEqual([false, 0]);
+    expect(unliked.likedByMe).toBe(false);
+    expect(unliked.likeCount).toBe(0);
   });
 
   it('addComment appends the comment to the post', async () => {
@@ -189,6 +193,7 @@ describe('edits keep what was already there', () => {
     await done(api.addComment(post.id, 'second'));
 
     const saved = await done(api.getPostById(post.id));
+    // order is the same as it was added in
     expect(saved?.comments.map((c) => c.content)).toEqual(['first', 'second']);
   });
 
