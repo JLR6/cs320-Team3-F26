@@ -155,36 +155,41 @@ describe('SignupForm', () => {
   });
 
   it('shows a generic toast when the request throws', async () => {
-  rpc.mockRejectedValue(new Error('network'));
-  const user = userEvent.setup();
-  render(<SignupForm />);
-  await fillValid(user);
-  await submit(user);
+    rpc.mockRejectedValue(new Error('network'));
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await submit(user);
 
-  await waitFor(() =>
-    expect(toast.error).toHaveBeenCalledWith('Something went wrong. Please try again.'),
-  );
-});
-
-it('sends the LeetCode username when it is provided', async () => {
-  signUp.mockResolvedValue({
-    data: { user: { identities: [{}] }, session: {} },
-    error: null,
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'Something went wrong. Please try again.',
+      ),
+    );
   });
-  const user = userEvent.setup();
-  render(<SignupForm />);
-  await fillValid(user);
-  await user.type(screen.getByLabelText('LeetCode username (optional)'), 'alex_lc');
-  await submit(user);
 
-  await waitFor(() =>
-    expect(signUp).toHaveBeenCalledWith(
-      expect.objectContaining({
-        options: expect.objectContaining({
-          data: expect.objectContaining({ leetcode_username: 'alex_lc' }),
+  it('sends the LeetCode username when it is provided', async () => {
+    signUp.mockResolvedValue({
+      data: { user: { identities: [{}] }, session: {} },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await user.type(
+      screen.getByLabelText('LeetCode username (optional)'),
+      'alex_lc',
+    );
+    await submit(user);
+
+    await waitFor(() =>
+      expect(signUp).toHaveBeenCalledWith(
+        expect.objectContaining({
+          options: expect.objectContaining({
+            data: expect.objectContaining({ leetcode_username: 'alex_lc' }),
+          }),
         }),
-      }),
-    ),
-  );
-});
+      ),
+    );
+  });
 });

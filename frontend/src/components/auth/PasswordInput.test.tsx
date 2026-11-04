@@ -14,10 +14,9 @@ describe('PasswordInput', () => {
     // show the password and confirm the button state
     await user.click(screen.getByRole('button', { name: 'Show password' }));
     expect(input).toHaveAttribute('type', 'text');
-    expect(screen.getByRole('button', { name: 'Hide password' })).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Hide password' }),
+    ).toHaveAttribute('aria-pressed', 'true');
 
     // hide the password again
     await user.click(screen.getByRole('button', { name: 'Hide password' }));

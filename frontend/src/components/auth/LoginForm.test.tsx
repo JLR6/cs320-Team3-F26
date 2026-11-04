@@ -38,7 +38,9 @@ describe('LoginForm', () => {
     render(<LoginForm next="/dashboard" />);
     await user.click(screen.getByRole('button', { name: 'Log in' }));
 
-    expect(await screen.findByText('Enter a valid email address')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Enter a valid email address'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Enter your password')).toBeInTheDocument();
     expect(signInWithPassword).not.toHaveBeenCalled();
   });
@@ -60,7 +62,9 @@ describe('LoginForm', () => {
 
   it('shows one vague message for wrong credentials', async () => {
     // simulate invalid login details
-    signInWithPassword.mockResolvedValue({ error: { code: 'invalid_credentials' } });
+    signInWithPassword.mockResolvedValue({
+      error: { code: 'invalid_credentials' },
+    });
     const user = userEvent.setup();
     render(<LoginForm next="/dashboard" />);
     await submitValid(user);
@@ -73,13 +77,17 @@ describe('LoginForm', () => {
 
   it('shows a generic message for other Supabase errors', async () => {
     // simulate an unexpected authentication error
-    signInWithPassword.mockResolvedValue({ error: { code: 'unexpected_failure' } });
+    signInWithPassword.mockResolvedValue({
+      error: { code: 'unexpected_failure' },
+    });
     const user = userEvent.setup();
     render(<LoginForm next="/dashboard" />);
     await submitValid(user);
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('Could not log in. Please try again.'),
+      expect(toast.error).toHaveBeenCalledWith(
+        'Could not log in. Please try again.',
+      ),
     );
   });
 
@@ -91,20 +99,26 @@ describe('LoginForm', () => {
     await submitValid(user);
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith('Something went wrong. Please try again.'),
+      expect(toast.error).toHaveBeenCalledWith(
+        'Something went wrong. Please try again.',
+      ),
     );
   });
 
   it('disables the button while logging in', async () => {
     // keep the request pending while checking the loading state
     let finish!: (value: unknown) => void;
-    signInWithPassword.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    signInWithPassword.mockReturnValue(
+      new Promise((resolve) => (finish = resolve)),
+    );
     const user = userEvent.setup();
     render(<LoginForm next="/dashboard" />);
     await submitValid(user);
 
-    expect(await screen.findByRole('button', { name: /logging in/i })).toBeDisabled();
+    expect(
+      await screen.findByRole('button', { name: /logging in/i }),
+    ).toBeDisabled();
     finish({ error: null });
     await waitFor(() => expect(replace).toHaveBeenCalled());
-  }); 
+  });
 });
