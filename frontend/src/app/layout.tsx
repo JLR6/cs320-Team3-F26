@@ -17,8 +17,8 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       suppressHydrationWarning
     >
       <body className="bg-background text-foreground font-sans antialiased">
-              <Providers>{children}</Providers>
-          <Toaster />
+        <Providers>{children}</Providers>
+        <Toaster />
       </body>
     </html>
   );

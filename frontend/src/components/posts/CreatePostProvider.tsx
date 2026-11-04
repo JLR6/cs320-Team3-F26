@@ -1,16 +1,20 @@
-"use client";
+'use client';
 
-import { createContext, useContext, useState } from "react";
-import { PostFormDialog } from "./PostFormDialog";
-import * as api from "@/lib/posts-api";
-import type { PostInput } from "@/types/post";
+import { createContext, useContext, useState } from 'react';
+import { PostFormDialog } from './PostFormDialog';
+import * as api from '@/lib/posts-api';
+import type { PostInput } from '@/types/post';
 
 const CreatePostContext = createContext<{
   postsVersion: number;
   openCreate: () => void;
 } | null>(null);
 
-export function CreatePostProvider({ children }: { children: React.ReactNode }) {
+export function CreatePostProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const [open, setOpen] = useState(false); // is the create dialog open?
   const [postsVersion, setPostsVersion] = useState(0); // bump to make feeds reload
 
@@ -20,15 +24,22 @@ export function CreatePostProvider({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <CreatePostContext.Provider value={{ postsVersion, openCreate: () => setOpen(true) }}>
+    <CreatePostContext.Provider
+      value={{ postsVersion, openCreate: () => setOpen(true) }}
+    >
       {children}
-      <PostFormDialog open={open} onOpenChange={setOpen} onSubmit={handleCreate} />
+      <PostFormDialog
+        open={open}
+        onOpenChange={setOpen}
+        onSubmit={handleCreate}
+      />
     </CreatePostContext.Provider>
   );
 }
 
 export function useCreatePost() {
   const ctx = useContext(CreatePostContext);
-  if (!ctx) throw new Error("useCreatePost must be used inside CreatePostProvider");
+  if (!ctx)
+    throw new Error('useCreatePost must be used inside CreatePostProvider');
   return ctx;
 }
