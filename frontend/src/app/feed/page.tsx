@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { getUser } from '@/src/lib/api/users';
+import { getUser } from '@/lib/api/users';
 
 export default function Welcome({ userId }: { userId: string }) {
   const { data } = useQuery({

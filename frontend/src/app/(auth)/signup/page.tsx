@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { SignupForm } from '@/src/components/auth/SignupForm';
+import { SignupForm } from '@/components/auth/SignupForm';
 
 export const metadata: Metadata = {
   title: 'Create account | LeetMeet',

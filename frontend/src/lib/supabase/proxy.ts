@@ -43,20 +43,22 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname !== '/feed' &&
     request.nextUrl.pathname !== '/login' &&
     request.nextUrl.pathname !== '/signup' &&
-    request.nextUrl.pathname !== '/callback' &&
-    !request.nextUrl.pathname.startsWith('/auth')
+    request.nextUrl.pathname !== '/forgotPass' &&
+    request.nextUrl.pathname !== '/callback'
   ) {
     // send guests to login for protected routes
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.search = '';
+    url.searchParams.set('next', request.nextUrl.pathname + request.nextUrl.search);
     return NextResponse.redirect(url);
   }
 
   // send logged-in users from auth pages to the feed
   if (
-    (user && request.nextUrl.pathname === '/login') ||
-    request.nextUrl.pathname === '/signup'
+    user &&
+    (request.nextUrl.pathname === '/login' ||
+      request.nextUrl.pathname === '/signup')
   ) {
     const url = request.nextUrl.clone();
     url.pathname = '/feed';

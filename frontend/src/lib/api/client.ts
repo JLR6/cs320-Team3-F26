@@ -1,4 +1,4 @@
-import { createClient } from '@/src/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 export class ApiError extends Error {
   constructor(

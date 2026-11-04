@@ -8,7 +8,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ForgotPasswordForm } from '@/src/components/auth/ForgotPasswordForm';
+import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
 
 export const metadata: Metadata = {
   title: 'Reset password | LeetMeet',

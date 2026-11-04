@@ -10,9 +10,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from './PasswordInput';
-import { signupSchema, type SignupValues } from '@/src/lib/validation/auth';
-import { createClient } from '@/src/lib/supabase/client';
-import { FieldError } from '@/src/components/auth/FieldError';
+import { signupSchema, type SignupValues } from '@/lib/validation/auth';
+import { createClient } from '@/lib/supabase/client';
+import { FieldError } from '@/components/auth/FieldError';
 
 export function SignupForm() {
   const router = useRouter();

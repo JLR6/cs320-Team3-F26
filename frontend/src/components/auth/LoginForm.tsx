@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from './PasswordInput';
 import { FieldError } from './FieldError';
-import { loginSchema, type LoginValues } from '@/src/lib/validation/auth';
-import { createClient } from '@/src/lib/supabase/client';
+import { loginSchema, type LoginValues } from '@/lib/validation/auth';
+import { createClient } from '@/lib/supabase/client';
 
 export function LoginForm({ next }: { next: string }) {
   const router = useRouter();

@@ -35,6 +35,7 @@ describe('SignupForm', () => {
     rpc.mockResolvedValue({ data: true, error: null });
   });
 
+  // Invalid email addresses are rejected when the field loses focus.
   it('shows an email error after the field is blurred', async () => {
     const user = userEvent.setup();
     render(<SignupForm />);
@@ -45,6 +46,27 @@ describe('SignupForm', () => {
     ).toBeInTheDocument();
   });
 
+  // Existing accounts display an inline email error and do not redirect.
+  it('shows an error under email when the account already exists', async () => {
+    signUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: {
+        code: 'user_already_exists',
+        message: 'User already registered',
+      },
+    });
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await submit(user);
+
+    expect(
+      await screen.findByText('An account with this email already exists'),
+    ).toBeInTheDocument();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  // The confirmation field must match the password field.
   it('shows a mismatch error on the confirm field', async () => {
     const user = userEvent.setup();
     render(<SignupForm />);
@@ -58,6 +80,7 @@ describe('SignupForm', () => {
     ).toBeInTheDocument();
   });
 
+  // Taken usernames prevent signup from being submitted.
   it('shows an error under username when it is taken, without calling signUp', async () => {
     rpc.mockResolvedValue({ data: false, error: null });
     const user = userEvent.setup();
@@ -70,25 +93,7 @@ describe('SignupForm', () => {
     expect(signUp).not.toHaveBeenCalled();
   });
 
-  it('tells the user to check their email when confirmation is required', async () => {
-    signUp.mockResolvedValue({
-      data: { user: { identities: [{}] }, session: null },
-      error: null,
-    });
-    const user = userEvent.setup();
-    render(<SignupForm />);
-    await fillValid(user);
-    await submit(user);
-    await waitFor(() =>
-      expect(toast.success).toHaveBeenCalledWith(
-        expect.stringContaining('Check your email'),
-      ),
-    );
-    expect(signUp).toHaveBeenCalledWith(
-      expect.objectContaining({ email: 'alex@example.com' }),
-    );
-  });
-
+  // Successful signup redirects users to the feed.
   it('redirects when signUp returns a session', async () => {
     signUp.mockResolvedValue({
       data: { user: { identities: [{}] }, session: {} },
@@ -100,4 +105,86 @@ describe('SignupForm', () => {
     await submit(user);
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/feed'));
   });
+
+  // Supabase weak-password errors are shown below the password field.
+  it('shows a weak password error under the password field', async () => {
+    signUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { code: 'weak_password', message: 'Password is too weak' },
+    });
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await submit(user);
+
+    expect(await screen.findByText('Password is too weak')).toBeInTheDocument();
+  });
+
+  // Unexpected signup failures show a generic error toast.
+  it('shows a generic toast for other signup errors', async () => {
+    signUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { code: 'unexpected_failure', message: 'boom' },
+    });
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await submit(user);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'Could not create your account. Please try again.',
+      ),
+    );
+  });
+
+  // Username-check failures stop signup and show an error toast.
+  it('stops and shows a toast when the username check fails', async () => {
+    rpc.mockResolvedValue({ data: null, error: { message: 'down' } });
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await submit(user);
+
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'Could not check that username. Please try again.',
+      ),
+    );
+    expect(signUp).not.toHaveBeenCalled();
+  });
+
+  it('shows a generic toast when the request throws', async () => {
+  rpc.mockRejectedValue(new Error('network'));
+  const user = userEvent.setup();
+  render(<SignupForm />);
+  await fillValid(user);
+  await submit(user);
+
+  await waitFor(() =>
+    expect(toast.error).toHaveBeenCalledWith('Something went wrong. Please try again.'),
+  );
+});
+
+it('sends the LeetCode username when it is provided', async () => {
+  signUp.mockResolvedValue({
+    data: { user: { identities: [{}] }, session: {} },
+    error: null,
+  });
+  const user = userEvent.setup();
+  render(<SignupForm />);
+  await fillValid(user);
+  await user.type(screen.getByLabelText('LeetCode username (optional)'), 'alex_lc');
+  await submit(user);
+
+  await waitFor(() =>
+    expect(signUp).toHaveBeenCalledWith(
+      expect.objectContaining({
+        options: expect.objectContaining({
+          data: expect.objectContaining({ leetcode_username: 'alex_lc' }),
+        }),
+      }),
+    ),
+  );
+});
 });

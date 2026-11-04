@@ -10,14 +10,28 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      include: [
-        'src/**/*.{ts,tsx}',
-        // 'src/lib/supabase/proxy.ts' // TODO keep proxy for testing because it is manually modified, not just boilerplate
-      ],
+      include: ['src/**/*.{ts,tsx}'],
       exclude: [
+        // for explicitly visual components, unit tests only prove if they render or not which isn't valuable
+        'src/components/ui/**/*.{ts,tsx}', // Generated components, doesn't make sense to test them
+        'src/app/providers.tsx', // tanstack boilerplate, not worth testing
+        'src/components/ThemeProvider.tsx', // theme boilerplate, not worth testing
+        // these are components that are more worth testing visually, not through unit tests
+        'src/components/app-header.tsx',
+        'src/components/app-sidebar.tsx',
+        'src/app/layout.tsx', // layout is a visual thing, not worth testing through unit tests
+        'src/app/**/page.tsx', // pages are all layout and visual components
+        'src/hooks/use-mobile.ts', // shadcn sidebar helper
+        'src/lib/supabase/client.ts', // client and server are both boilerplate while proxy is actually manually modified
+        'src/lib/supabase/server.ts',
+        'src/app/callback/**/*.{ts,tsx}', // auth callback page is just a redirect and will be tested through e2e tests
+        /** TODO not covered in this pr atm **/
+        'src/lib/routes.ts', // nothing really here to test besides checking url when going to distinct posts
+        'src/components/auth/ForgotPasswordForm.tsx', // not a part of this PR, can add after Elizabeth's PR is merged
+        /** ------------------ uncovered ----------------  **/
+        'src/types/**/*.{ts,tsx}', // types are not worth testing
         '**/*.test.{ts,tsx}',
         '**/*.d.ts',
-        'src/lib/supabase/**/*.{ts,tsx}', // exclude supabase client and server code from coverage
       ],
       reporter: ['text', 'html', 'lcov'],
       reportOnFailure: true,

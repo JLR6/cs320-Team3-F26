@@ -8,8 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { LoginForm } from '@/src/components/auth/LoginForm';
-import { getSafeNext } from '@/src/lib/utils';
+import { LoginForm } from '@/components/auth/LoginForm';
+import { getSafeNext } from '@/lib/utils';
 
 export const metadata: Metadata = {
   title: 'Log in | LeetMeet',

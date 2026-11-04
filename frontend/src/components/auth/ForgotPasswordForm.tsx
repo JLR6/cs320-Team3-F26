@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { createClient } from '@/src/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { FieldError } from './FieldError';
 
 // reuse one client instead of recreating it per submit
