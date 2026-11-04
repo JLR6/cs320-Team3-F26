@@ -1,12 +1,12 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
 
-  // With Fluid compute, don't put this client in a global environment
-  // variable. Always create a new one on each request.
+  // make a new client for each request
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!,
@@ -30,16 +30,13 @@ export async function updateSession(request: NextRequest) {
     },
   );
 
-  // Do not run code between createServerClient and
-  // supabase.auth.getClaims(). A simple mistake could make it very hard to debug
-  // issues with users being randomly logged out.
+  // keep this path next to getClaims to avoid random logouts
 
-  // IMPORTANT: If you remove getClaims() and you use server-side rendering
-  // with the Supabase client, your users may be randomly logged out.
+  // keep getClaims for stable server-rendered sessions
   const { data } = await supabase.auth.getClaims();
   const user = data?.claims;
 
-  // TODO add route here for main feed because it doesn't need authentication
+  // add public routes here when they need no auth
   if (
     !user &&
     request.nextUrl.pathname !== '/' &&
@@ -49,14 +46,14 @@ export async function updateSession(request: NextRequest) {
     request.nextUrl.pathname !== '/callback' &&
     !request.nextUrl.pathname.startsWith('/auth')
   ) {
-    // no user, potentially respond by redirecting the user to the login page
+    // send guests to login for protected routes
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     url.search = '';
     return NextResponse.redirect(url);
   }
 
-  // Logged in on login/signup: go to the dashboard (keep the refreshed cookies)
+  // send logged-in users from auth pages to the feed
   if (
     (user && request.nextUrl.pathname === '/login') ||
     request.nextUrl.pathname === '/signup'
@@ -71,18 +68,7 @@ export async function updateSession(request: NextRequest) {
     return redirect;
   }
 
-  // IMPORTANT: You *must* return the supabaseResponse object as it is.
-  // If you're creating a new response object with NextResponse.next() make sure to:
-  // 1. Pass the request in it, like so:
-  //    const myNewResponse = NextResponse.next({ request })
-  // 2. Copy over the cookies, like so:
-  //    myNewResponse.cookies.setAll(supabaseResponse.cookies.getAll())
-  // 3. Change the myNewResponse object to fit your needs, but avoid changing
-  //    the cookies!
-  // 4. Finally:
-  //    return myNewResponse
-  // If this is not done, you may be causing the browser and server to go out
-  // of sync and terminate the user's session prematurely!
+  // return this response so refreshed cookies reach the browser
 
   return supabaseResponse;
 }

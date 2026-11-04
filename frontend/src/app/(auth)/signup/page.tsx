@@ -8,13 +8,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { SignupForm } from '@/components/auth/SignupForm';
+import { SignupForm } from '@/src/components/auth/SignupForm';
 
 export const metadata: Metadata = {
   title: 'Create account | LeetMeet',
 };
 
 export default function SignupPage() {
+  // keep account creation focused in the shared form
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md space-y-6">

@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { createClient } from '@/src/lib/supabase/client';
 import { FieldError } from './FieldError';
 
-// Instantiate the Supabase client once globally instead of recreating it inside the submission function
+// reuse one client instead of recreating it per submit
 const supabase = createClient();
 
 export function ForgotPasswordForm() {
@@ -21,8 +21,8 @@ export function ForgotPasswordForm() {
 
   async function handleReset(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    
-    // Clear previous states immediately
+
+    // clear old state before the next request
     setErrorMessage('');
     setSent(false);
     setLoading(true);
@@ -59,20 +59,21 @@ export function ForgotPasswordForm() {
           onChange={(event) => setEmail(event.target.value)}
           required
           disabled={loading}
-          aria-describedby={errorMessage ? "email-error" : undefined}
+          aria-describedby={errorMessage ? 'email-error' : undefined}
           aria-invalid={!!errorMessage}
         />
-        
-        {/* Localized Form Error Handling */}
+
+        {/* show the local form error */}
         <FieldError id="email-error" message={errorMessage} />
       </div>
 
       {sent && (
-        <div 
-          role="status" 
+        <div
+          role="status"
           className="text-sm rounded-md border border-emerald-200 bg-emerald-50 p-3 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-400"
         >
-          If an account exists for this email, check your inbox for a password reset link.
+          If an account exists for this email, check your inbox for a password
+          reset link.
         </div>
       )}
 

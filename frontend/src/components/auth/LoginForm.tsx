@@ -10,8 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PasswordInput } from './PasswordInput';
 import { FieldError } from './FieldError';
-import { loginSchema, type LoginValues } from '@/lib/validation/auth';
-import { createClient } from '@/lib/supabase/client';
+import { loginSchema, type LoginValues } from '@/src/lib/validation/auth';
+import { createClient } from '@/src/lib/supabase/client';
 
 export function LoginForm({ next }: { next: string }) {
   const router = useRouter();
@@ -30,7 +30,7 @@ export function LoginForm({ next }: { next: string }) {
     try {
       const { error } = await createClient().auth.signInWithPassword(values);
       if (error) {
-        // Same message for a wrong email or password, so we don't reveal which accounts exist
+        // use one msg so account lookup stays private
         toast.error(
           error.code === 'invalid_credentials'
             ? 'Incorrect email or password.'
@@ -39,7 +39,7 @@ export function LoginForm({ next }: { next: string }) {
         return;
       }
       router.replace(next);
-      router.refresh(); // re-run server components with the new session
+      router.refresh(); // rerun server comps with the new session
     } catch {
       toast.error('Something went wrong. Please try again.');
     }

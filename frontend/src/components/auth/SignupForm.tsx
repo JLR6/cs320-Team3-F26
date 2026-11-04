@@ -39,7 +39,7 @@ export function SignupForm() {
     try {
       const supabase = createClient();
 
-      // 1. Friendly "username taken" check (the DB unique index is the real guard)
+      // check early; the db unique index is the real guard
       const { data: available, error: checkError } = await supabase.rpc(
         'username_available',
         { name: values.username },
@@ -53,7 +53,7 @@ export function SignupForm() {
         return;
       }
 
-      // 2. Create the account
+      // create the account after the name check
       const { data, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
@@ -84,9 +84,7 @@ export function SignupForm() {
         return;
       }
 
-      // With confirmation on, an already-registered email returns no error but
-      // an empty identities list (Supabase hides which emails exist). Without
-      // this check the user sees "check your email" and nothing ever arrives.
+      // catch hidden duplicate emails when confirmation is on
       if (data.user && data.user.identities?.length === 0) {
         setError('email', {
           message: 'An account with this email already exists',

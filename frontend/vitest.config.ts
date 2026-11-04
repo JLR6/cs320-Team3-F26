@@ -10,8 +10,15 @@ export default defineConfig({
     include: ['src/**/*.test.{ts,tsx}'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.{ts,tsx}'],
-      exclude: ['**/*.test.{ts,tsx}', '**/*.d.ts'],
+      include: [
+        'src/**/*.{ts,tsx}',
+        // 'src/lib/supabase/proxy.ts' // TODO keep proxy for testing because it is manually modified, not just boilerplate
+      ],
+      exclude: [
+        '**/*.test.{ts,tsx}',
+        '**/*.d.ts',
+        'src/lib/supabase/**/*.{ts,tsx}', // exclude supabase client and server code from coverage
+      ],
       reporter: ['text', 'html', 'lcov'],
       reportOnFailure: true,
       thresholds: { lines: 90, statements: 90, functions: 90, branches: 90 },

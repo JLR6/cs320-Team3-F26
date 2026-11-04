@@ -1,5 +1,5 @@
 import { type NextRequest } from 'next/server';
-import { updateSession } from '@/src/lib/supabase/proxy'; // adjust to where your helper lives
+import { updateSession } from '@/src/lib/supabase/proxy'; // refresh auth state per request
 
 export async function proxy(request: NextRequest) {
   return await updateSession(request);

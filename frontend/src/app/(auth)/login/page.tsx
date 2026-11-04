@@ -8,8 +8,8 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { LoginForm } from '@/components/auth/LoginForm';
-import { getSafeNext } from '@/lib/utils';
+import { LoginForm } from '@/src/components/auth/LoginForm';
+import { getSafeNext } from '@/src/lib/utils';
 
 export const metadata: Metadata = {
   title: 'Log in | LeetMeet',
@@ -20,7 +20,7 @@ type SearchParams = Promise<{
   error?: string | string[];
 }>;
 
-// A repeated param (?next=a&next=b) arrives as an array, so take the first
+// repeated params arrive as arrays, so use the first
 const first = (value?: string | string[]) =>
   Array.isArray(value) ? value[0] : value;
 

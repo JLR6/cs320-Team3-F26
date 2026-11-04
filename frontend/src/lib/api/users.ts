@@ -14,7 +14,9 @@ export const getUser = async (id: string) =>
   userSchema.parse(await apiFetch(`/users/${id}`));
 
 export const getUserByUsername = async (username: string) =>
-  userSchema.parse(await apiFetch(`/users/username/${encodeURIComponent(username)}`));
+  userSchema.parse(
+    await apiFetch(`/users/username/${encodeURIComponent(username)}`),
+  );
 
 // Response shape: confirm with backend
 export const getProfilePictureUrl = async (id: string) =>
@@ -25,13 +27,19 @@ export const updateUser = async (
   patch: { username?: string; leetcode_username?: string },
 ) =>
   userSchema.parse(
-    await apiFetch(`/users/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }),
+    await apiFetch(`/users/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(patch),
+    }),
   );
 
 export function updateProfilePicture(id: string, file: File) {
   const body = new FormData();
   body.append('file', file); // field name: confirm with backend
-  return apiFetch<void>(`/users/${id}/profilePicture`, { method: 'PATCH', body });
+  return apiFetch<void>(`/users/${id}/profilePicture`, {
+    method: 'PATCH',
+    body,
+  });
 }
 
 export const deleteUser = (id: string) =>

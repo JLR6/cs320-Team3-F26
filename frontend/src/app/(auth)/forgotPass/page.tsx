@@ -8,13 +8,14 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
+import { ForgotPasswordForm } from '@/src/components/auth/ForgotPasswordForm';
 
 export const metadata: Metadata = {
   title: 'Reset password | LeetMeet',
 };
 
 export default function ForgotPasswordPage() {
+  // keep reset handling inside the shared form
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
       <div className="w-full max-w-md space-y-6">
