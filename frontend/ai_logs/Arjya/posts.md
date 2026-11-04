@@ -12,6 +12,9 @@ Posts UI
 - Generally, everything 'interactable' in the frontend uses the Next.js 'use client' indicator.
 - The best way to go about making my own components is by using very thoroughly tested and refined components from libraries like shadcn and then changing them accordingly and individually if necessary so it fits our UI theme and format.
   - Kind of learned this off of Megana's sidebar implementation as well.
+### For integration
+- it seems like I only really need to modify posts-api.ts to make it work, which only needs the endpoints.
+- 
 
 ## Resource Usage
 
@@ -22,3 +25,4 @@ Tokens Used & Dollar Equivalent (if using a free tier, specify how much of your 
 ## Chat Log
 
 https://claude.ai/share/4f0f4360-fd89-4508-868d-fb1430e4bf0f
+https://claude.ai/share/cd35b8f9-b60e-481b-bd4c-c31bcf3575f4
