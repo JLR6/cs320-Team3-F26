@@ -37,7 +37,10 @@ async function fillValid(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByPlaceholderText('Email'), 'alex@example.com');
   await user.type(screen.getByPlaceholderText('Username'), 'alex_dev');
   await user.type(screen.getByPlaceholderText('Password'), 'password123');
-  await user.type(screen.getByPlaceholderText('Confirm password'), 'password123');
+  await user.type(
+    screen.getByPlaceholderText('Confirm password'),
+    'password123',
+  );
 }
 
 async function submit(user: ReturnType<typeof userEvent.setup>) {
