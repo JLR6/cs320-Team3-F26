@@ -4,16 +4,31 @@ import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { SignupForm } from './SignupForm';
 
-const { signUp, rpc, replace } = vi.hoisted(() => ({
-  signUp: vi.fn(),
-  rpc: vi.fn(),
-  replace: vi.fn(),
-}));
+// Create independent mock objects to manipulate inside individual tests
+const { signUp, replace, maybeSingleMock, fromMock } = vi.hoisted(() => {
+  const maybeSingleMock = vi.fn();
+  const eqMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
+  const selectMock = vi.fn(() => ({ eq: eqMock }));
+  const fromMock = vi.fn(() => ({ select: selectMock }));
+
+  return {
+    signUp: vi.fn(),
+    replace: vi.fn(),
+    maybeSingleMock,
+    fromMock,
+  };
+});
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+
+// Mock the supabase client to simulate our fluent chainable query structure
 vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({ auth: { signUp }, rpc }),
+  createClient: () => ({
+    auth: { signUp },
+    from: fromMock,
+  }),
 }));
+
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace, refresh: vi.fn() }),
 }));
@@ -32,7 +47,8 @@ async function submit(user: ReturnType<typeof userEvent.setup>) {
 describe('SignupForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    rpc.mockResolvedValue({ data: true, error: null });
+    // Default the email check to return null, meaning the email is perfectly available
+    maybeSingleMock.mockResolvedValue({ data: null, error: null });
   });
 
   // Invalid email addresses are rejected when the field loses focus.
@@ -48,13 +64,12 @@ describe('SignupForm', () => {
 
   // Existing accounts display an inline email error and do not redirect.
   it('shows an error under email when the account already exists', async () => {
-    signUp.mockResolvedValue({
-      data: { user: null, session: null },
-      error: {
-        code: 'user_already_exists',
-        message: 'User already registered',
-      },
+    // Simulate finding a record during the frontend pre-check step
+    maybeSingleMock.mockResolvedValue({
+      data: { email: 'alex@example.com' },
+      error: null,
     });
+
     const user = userEvent.setup();
     render(<SignupForm />);
     await fillValid(user);
@@ -81,14 +96,19 @@ describe('SignupForm', () => {
   });
 
   // Taken usernames prevent signup from being submitted.
-  it('shows an error under username when it is taken, without calling signUp', async () => {
-    rpc.mockResolvedValue({ data: false, error: null });
+  // UPDATE: This test now mirrors the email block logic since the code was migrated from checking usernames to email
+  it('shows an error under email when it is taken, without calling signUp', async () => {
+    // Mock the chain to return data instead of null, signaling the address is already registered
+    maybeSingleMock.mockResolvedValue({
+      data: { email: 'alex@example.com' },
+      error: null,
+    });
     const user = userEvent.setup();
     render(<SignupForm />);
     await fillValid(user);
     await submit(user);
     expect(
-      await screen.findByText('That username is already taken'),
+      await screen.findByText('An account with this email already exists'),
     ).toBeInTheDocument();
     expect(signUp).not.toHaveBeenCalled();
   });
@@ -139,8 +159,12 @@ describe('SignupForm', () => {
   });
 
   // Username-check failures stop signup and show an error toast.
-  it('stops and shows a toast when the username check fails', async () => {
-    rpc.mockResolvedValue({ data: null, error: { message: 'down' } });
+  // UPDATE: Updated the error copy match to look for "email availability"
+  it('stops and shows a toast when the email check fails', async () => {
+    maybeSingleMock.mockResolvedValue({
+      data: null,
+      error: { message: 'down' },
+    });
     const user = userEvent.setup();
     render(<SignupForm />);
     await fillValid(user);
@@ -148,14 +172,14 @@ describe('SignupForm', () => {
 
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
-        'Could not check that username. Please try again.',
+        'Could not check email availability. Please try again.',
       ),
     );
     expect(signUp).not.toHaveBeenCalled();
   });
 
   it('shows a generic toast when the request throws', async () => {
-    rpc.mockRejectedValue(new Error('network'));
+    maybeSingleMock.mockRejectedValue(new Error('network'));
     const user = userEvent.setup();
     render(<SignupForm />);
     await fillValid(user);

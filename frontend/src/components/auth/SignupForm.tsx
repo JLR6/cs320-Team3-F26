@@ -40,21 +40,27 @@ export function SignupForm() {
       const supabase = createClient();
 
       // check early; the db unique index is the real guard
-      const { data: available, error: checkError } = await supabase.rpc(
-        'username_available',
-        { name: values.username },
-      );
+      const { data: existingUser, error: checkError } = await supabase
+        .from('users')
+        .select('email')
+        .eq('email', values.email)
+        .maybeSingle();
+
       if (checkError) {
-        toast.error('Could not check that username. Please try again.');
+        toast.error('Could not check email availability. Please try again.');
         return;
       }
-      if (!available) {
-        setError('username', { message: 'That username is already taken' });
+
+      // 2. If existingUser is not null, the email is taken
+      if (existingUser) {
+        setError('email', {
+          message: 'An account with this email already exists',
+        });
         return;
       }
 
       // create the account after the name check
-      const { data, error } = await supabase.auth.signUp({
+      const { data: signUpData, error } = await supabase.auth.signUp({
         email: values.email,
         password: values.password,
         options: {
@@ -85,14 +91,14 @@ export function SignupForm() {
       }
 
       // catch hidden duplicate emails when confirmation is on
-      if (data.user && data.user.identities?.length === 0) {
+      if (signUpData.user && signUpData.user.identities?.length === 0) {
         setError('email', {
           message: 'An account with this email already exists',
         });
         return;
       }
 
-      if (data.session) {
+      if (signUpData.session) {
         toast.success('Account created successfully!');
         router.replace('/feed');
         router.refresh();
