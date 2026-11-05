@@ -26,7 +26,7 @@ async function submitValid(user: User) {
   // enter valid credentials and submit the form
   await user.type(screen.getByPlaceholderText('Email'), 'alex@example.com');
   await user.type(screen.getByPlaceholderText('Password'), 'password123');
-  await user.click(screen.getByRole('button', { name: 'Log in' }));
+  await user.click(screen.getByRole('button', { name: 'Sign In' }));
 }
 
 describe('LoginForm', () => {
@@ -36,7 +36,7 @@ describe('LoginForm', () => {
   it('shows errors and does not call Supabase when the form is empty', async () => {
     const user = userEvent.setup();
     render(<LoginForm next="/dashboard" />);
-    await user.click(screen.getByRole('button', { name: 'Log in' }));
+    await user.click(screen.getByRole('button', { name: 'Sign In' }));
 
     expect(
       await screen.findByText('Enter a valid email address'),
@@ -116,7 +116,7 @@ describe('LoginForm', () => {
     await submitValid(user);
 
     expect(
-      await screen.findByRole('button', { name: /logging in/i }),
+      await screen.findByRole('button', { name: /signing in/i }),
     ).toBeDisabled();
     finish({ error: null });
     await waitFor(() => expect(replace).toHaveBeenCalled());

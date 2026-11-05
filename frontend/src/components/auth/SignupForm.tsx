@@ -6,13 +6,11 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { PasswordInput } from './PasswordInput';
 import { signupSchema, type SignupValues } from '@/lib/validation/auth';
 import { createClient } from '@/lib/supabase/client';
 import { FieldError } from '@/components/auth/FieldError';
+import { AppCardInput, AppCardButton } from '@/components/app-card';
 
 export function SignupForm() {
   const router = useRouter();
@@ -114,88 +112,66 @@ export function SignupForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          aria-invalid={!!errors.email}
-          aria-describedby={errors.email ? 'email-error' : undefined}
-          {...register('email')}
-        />
-        <FieldError id="email-error" message={errors.email?.message} />
-      </div>
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <AppCardInput
+        id="email"
+        type="email"
+        placeholder="Email"
+        autoComplete="email"
+        {...register('email')}
+      />
+      <FieldError id="email-error" message={errors.email?.message} />
 
-      <div className="space-y-2">
-        <Label htmlFor="username">Username</Label>
-        <Input
-          id="username"
-          autoComplete="username"
-          aria-invalid={!!errors.username}
-          aria-describedby={errors.username ? 'username-error' : undefined}
-          {...register('username')}
-        />
-        <FieldError id="username-error" message={errors.username?.message} />
-      </div>
+      <AppCardInput
+        id="username"
+        placeholder="Username"
+        autoComplete="username"
+        aria-invalid={!!errors.username}
+        aria-describedby={errors.username ? 'username-error' : undefined}
+        {...register('username')}
+      />
+      <FieldError id="username-error" message={errors.username?.message} />
 
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <PasswordInput
-          id="password"
-          autoComplete="new-password"
-          aria-invalid={!!errors.password}
-          aria-describedby={errors.password ? 'password-error' : undefined}
-          {...register('password')}
-        />
-        <FieldError id="password-error" message={errors.password?.message} />
-      </div>
+      <PasswordInput
+        id="password"
+        placeholder="Password"
+        autoComplete="current-password"
+        {...register('password')}
+      />
+      <FieldError id="password-error" message={errors.password?.message} />
 
-      <div className="space-y-2">
-        <Label htmlFor="confirmPassword">Confirm password</Label>
-        <PasswordInput
-          id="confirmPassword"
-          autoComplete="new-password"
-          aria-invalid={!!errors.confirmPassword}
-          aria-describedby={
-            errors.confirmPassword ? 'confirmPassword-error' : undefined
-          }
-          {...register('confirmPassword')}
-        />
-        <FieldError
-          id="confirmPassword-error"
-          message={errors.confirmPassword?.message}
-        />
-      </div>
+      <PasswordInput
+        id="confirmPassword"
+        placeholder="Confirm password"
+        autoComplete="new-password"
+        {...register('confirmPassword')}
+      />
+      <FieldError
+        id="confirmPassword-error"
+        message={errors.confirmPassword?.message}
+      />
 
-      <div className="space-y-2">
-        <Label htmlFor="leetcodeUsername">LeetCode username (optional)</Label>
-        <Input
-          id="leetcodeUsername"
-          autoComplete="off"
-          aria-invalid={!!errors.leetcodeUsername}
-          aria-describedby={
-            errors.leetcodeUsername ? 'leetcodeUsername-error' : undefined
-          }
-          {...register('leetcodeUsername')}
-        />
-        <FieldError
-          id="leetcodeUsername-error"
-          message={errors.leetcodeUsername?.message}
-        />
-      </div>
+      <AppCardInput
+        id="leetcodeUsername"
+        placeholder="LeetCode username (optional)"
+        autoComplete="off"
+        {...register('leetcodeUsername')}
+      />
+      <FieldError
+        id="leetcodeUsername-error"
+        message={errors.leetcodeUsername?.message}
+      />
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <AppCardButton size="lg" type="submit" disabled={isSubmitting}>
         {isSubmitting ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Creating account...
+            Signing up...
           </>
         ) : (
-          'Create account'
+          'Sign Up'
         )}
-      </Button>
+      </AppCardButton>
     </form>
   );
 }

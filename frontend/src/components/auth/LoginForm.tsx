@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { FieldError } from './FieldError';
 import { loginSchema, type LoginValues } from '@/lib/validation/auth';
 import { createClient } from '@/lib/supabase/client';
+import { PasswordInput } from './PasswordInput';
 import { AppCardInput, AppCardButton } from '@/components/app-card';
 
 export function LoginForm({ next }: { next: string }) {
@@ -53,7 +54,7 @@ export function LoginForm({ next }: { next: string }) {
       />
       <FieldError id="email-error" message={errors.email?.message} />
 
-      <AppCardInput
+      <PasswordInput
         id="password"
         placeholder="Password"
         autoComplete="current-password"
@@ -65,10 +66,10 @@ export function LoginForm({ next }: { next: string }) {
         {isSubmitting ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Logging in...
+            Signing in...
           </>
         ) : (
-          'Log in'
+          'Sign In'
         )}
       </AppCardButton>
     </form>

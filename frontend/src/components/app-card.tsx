@@ -42,9 +42,7 @@ function AppCardContent({ className, ...props }: React.ComponentProps<'div'>) {
 }
 
 function AppCardInput({ className, ...props }: React.ComponentProps<'input'>) {
-  return (
-    <Input className={cn('rounded-sm font-light mt-5', className)} {...props} />
-  );
+  return <Input className={cn('rounded-sm mt-5', className)} {...props} />;
 }
 
 const appCardButtonVariants = cva('font-semibold rounded-sm mt-5', {

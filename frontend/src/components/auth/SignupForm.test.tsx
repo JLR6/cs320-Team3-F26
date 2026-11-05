@@ -34,14 +34,14 @@ vi.mock('next/navigation', () => ({
 }));
 
 async function fillValid(user: ReturnType<typeof userEvent.setup>) {
-  await user.type(screen.getByLabelText('Email'), 'alex@example.com');
-  await user.type(screen.getByLabelText('Username'), 'alex_dev');
-  await user.type(screen.getByLabelText('Password'), 'password123');
-  await user.type(screen.getByLabelText('Confirm password'), 'password123');
+  await user.type(screen.getByPlaceholderText('Email'), 'alex@example.com');
+  await user.type(screen.getByPlaceholderText('Username'), 'alex_dev');
+  await user.type(screen.getByPlaceholderText('Password'), 'password123');
+  await user.type(screen.getByPlaceholderText('Confirm password'), 'password123');
 }
 
 async function submit(user: ReturnType<typeof userEvent.setup>) {
-  await user.click(screen.getByRole('button', { name: 'Create account' }));
+  await user.click(screen.getByRole('button', { name: 'Sign Up' }));
 }
 
 describe('SignupForm', () => {
@@ -55,7 +55,7 @@ describe('SignupForm', () => {
   it('shows an email error after the field is blurred', async () => {
     const user = userEvent.setup();
     render(<SignupForm />);
-    await user.type(screen.getByLabelText('Email'), 'nope');
+    await user.type(screen.getByPlaceholderText('Email'), 'nope');
     await user.tab();
     expect(
       await screen.findByText('Enter a valid email address'),
@@ -86,7 +86,7 @@ describe('SignupForm', () => {
     const user = userEvent.setup();
     render(<SignupForm />);
     await fillValid(user);
-    const confirm = screen.getByLabelText('Confirm password');
+    const confirm = screen.getByPlaceholderText('Confirm password');
     await user.clear(confirm);
     await user.type(confirm, 'different123');
     await submit(user);
@@ -201,7 +201,7 @@ describe('SignupForm', () => {
     render(<SignupForm />);
     await fillValid(user);
     await user.type(
-      screen.getByLabelText('LeetCode username (optional)'),
+      screen.getByPlaceholderText('LeetCode username (optional)'),
       'alex_lc',
     );
     await submit(user);
