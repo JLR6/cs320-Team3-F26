@@ -24,8 +24,8 @@ type User = ReturnType<typeof userEvent.setup>;
 
 async function submitValid(user: User) {
   // enter valid credentials and submit the form
-  await user.type(screen.getByLabelText('Email'), 'alex@example.com');
-  await user.type(screen.getByLabelText('Password'), 'password123');
+  await user.type(screen.getByPlaceholderText('Email'), 'alex@example.com');
+  await user.type(screen.getByPlaceholderText('Password'), 'password123');
   await user.click(screen.getByRole('button', { name: 'Log in' }));
 }
 

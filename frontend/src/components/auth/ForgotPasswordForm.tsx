@@ -4,11 +4,9 @@ import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { createClient } from '@/lib/supabase/client';
 import { FieldError } from './FieldError';
+import { AppCardInput, AppCardButton } from '@/components/app-card';
 
 // reuse one client instead of recreating it per submit
 const supabase = createClient();
@@ -47,46 +45,48 @@ export function ForgotPasswordForm() {
   }
 
   return (
-    <form onSubmit={handleReset} className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email Address</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          placeholder="name@example.com"
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          required
-          disabled={loading}
-          aria-describedby={errorMessage ? 'email-error' : undefined}
-          aria-invalid={!!errorMessage}
-        />
+    <form onSubmit={handleReset} noValidate>
+      <AppCardInput
+        id="email"
+        type="email"
+        autoComplete="email"
+        placeholder="Email address"
+        value={email}
+        onChange={(event) => setEmail(event.target.value)}
+        required
+        disabled={loading}
+      />
 
-        {/* show the local form error */}
-        <FieldError id="email-error" message={errorMessage} />
-      </div>
+      {/* show the local form error */}
+      <FieldError id="email-error" message={errorMessage} />
 
       {sent && (
         <div
           role="status"
-          className="text-sm rounded-md border border-emerald-200 bg-emerald-50 p-3 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-400"
+          className="text-xs font-semibold mt-2 rounded-md border border-emerald-200 bg-emerald-50 p-3 text-emerald-700 dark:border-emerald-900/30 dark:bg-emerald-950/20 dark:text-emerald-400"
         >
           If an account exists for this email, check your inbox for a password
           reset link.
         </div>
       )}
 
-      <Button type="submit" className="w-full" disabled={loading}>
-        {loading ? (
-          <div className="flex items-center justify-center gap-2">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            <span>Sending...</span>
-          </div>
-        ) : (
-          'Send reset link'
-        )}
-      </Button>
+      <div className="w-full flex my-2">
+        <AppCardButton
+          variant="blue"
+          type="submit"
+          className="ml-auto"
+          disabled={!email.trim() || loading}
+        >
+          {loading ? (
+            <div className="flex items-center justify-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin" />
+              <span>Sending...</span>
+            </div>
+          ) : (
+            'Continue'
+          )}
+        </AppCardButton>
+      </div>
     </form>
   );
 }
