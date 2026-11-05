@@ -371,7 +371,7 @@ function AppearancePopoverButton() {
  */
 function SignOutPopoverButton() {
   return (
-    // TO DO: make this onClick={() => supabase.auth.signOut()} once auth is fully set up
+    // wire this to supabase signout when auth is ready
     <PopoverMenuButton>
       <LogOut className="h-4.5! w-4.5!" />
       {ActionTypeUser.SignOut}
