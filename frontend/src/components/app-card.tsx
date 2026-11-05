@@ -1,9 +1,11 @@
 // card styles specific to LeetMeet, to let us customize without touching card.tsx itself
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/auth/PasswordInput';
 import { Button } from '@/components/ui/button';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from 'cn';
+import { Label } from '@/components/ui/label';
 
 function AppCard({ className, ...props }: React.ComponentProps<'div'>) {
   return (
@@ -38,11 +40,31 @@ function AppCardHeader({
 }
 
 function AppCardContent({ className, ...props }: React.ComponentProps<'div'>) {
-  return <CardContent className={className} {...props} />;
+  return <CardContent className={cn('', className)} {...props} />;
 }
 
-function AppCardInput({ className, ...props }: React.ComponentProps<'input'>) {
-  return <Input className={cn('rounded-sm mt-5', className)} {...props} />;
+function AppCardInput({
+  className,
+  label,
+  asPassword,
+  ...props
+}: React.ComponentProps<'input'> & { label?: string; asPassword?: boolean }) {
+  const CardInput = asPassword ? PasswordInput : Input;
+
+  // unlabeled input
+  if (!label) {
+    return <CardInput className={cn('mt-5', className)} {...props} />;
+  }
+
+  // labeled input
+  return (
+    <div className="mt-5">
+      <Label htmlFor={label} className="mb-2">
+        {label}
+      </Label>
+      <CardInput id={label} className={cn('mt-0', className)} {...props} />
+    </div>
+  );
 }
 
 const appCardButtonVariants = cva('font-semibold rounded-sm mt-5', {

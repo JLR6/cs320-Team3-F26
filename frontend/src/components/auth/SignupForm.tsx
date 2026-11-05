@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
-import { PasswordInput } from './PasswordInput';
 import { signupSchema, type SignupValues } from '@/lib/validation/auth';
 import { createClient } from '@/lib/supabase/client';
 import { FieldError } from '@/components/auth/FieldError';
@@ -132,18 +131,20 @@ export function SignupForm() {
       />
       <FieldError id="username-error" message={errors.username?.message} />
 
-      <PasswordInput
+      <AppCardInput
         id="password"
         placeholder="Password"
         autoComplete="current-password"
+        asPassword
         {...register('password')}
       />
       <FieldError id="password-error" message={errors.password?.message} />
 
-      <PasswordInput
+      <AppCardInput
         id="confirmPassword"
         placeholder="Confirm password"
         autoComplete="new-password"
+        asPassword
         {...register('confirmPassword')}
       />
       <FieldError
