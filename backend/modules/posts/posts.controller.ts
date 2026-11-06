@@ -29,25 +29,25 @@ export class PostsController {
     @Query('cursor') cursor?: unknown,
     @Query('limit') limit?: unknown,
   ) {
-    const values = tag === undefined
-      ? []
-      : Array.isArray(tag) ? tag : [tag];
-
-    const tags: string[] = [];
-
-    for (const value of values) {
-      if (typeof value !== 'string' || !value.trim()) {
-        throw new BadRequestException(
-          'Each tag must be a non-empty string',
-        );
-      }
-
-      tags.push(value.trim());
-    }
-
+    const tags = this.parseTags(tag);
     return this.postsService.findAll(
       this.accessToken(authorization),
-      [...new Set(tags)],
+      tags,
+      parsePostPagination(cursor, limit),
+    );
+  }
+
+  @Get('following')
+  findFollowing(
+    @Headers('authorization') authorization?: string,
+    @Query('tag') tag?: unknown,
+    @Query('cursor') cursor?: unknown,
+    @Query('limit') limit?: unknown,
+  ) {
+    const tags = this.parseTags(tag);
+    return this.postsService.findFollowing(
+      this.accessToken(authorization),
+      tags,
       parsePostPagination(cursor, limit),
     );
   }
@@ -86,6 +86,20 @@ export class PostsController {
     @Headers('authorization') authorization?: string,
   ) {
     await this.postsService.remove(this.accessToken(authorization), id);
+  }
+
+  private parseTags(tag: unknown): string[] {
+    const values = tag === undefined ? [] : Array.isArray(tag) ? tag : [tag];
+    const tags = new Set<string>();
+
+    for (const value of values) {
+      if (typeof value !== 'string' || !value.trim()) {
+        throw new BadRequestException('Each tag must be a non-empty string');
+      }
+      tags.add(value.trim());
+    }
+
+    return [...tags];
   }
 
   private accessToken(authorization?: string): string {

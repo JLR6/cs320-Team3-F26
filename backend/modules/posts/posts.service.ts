@@ -27,7 +27,7 @@ export interface PostRecord {
 }
 
 export interface PostsPage {
-  posts: PostRecord[];
+  posts: (PostRecord & { problems?: { problem_tags: string[] } })[];
   nextCursor: string | null;
   hasMore: boolean;
 }
@@ -40,25 +40,47 @@ export class PostsService {
     @Inject(LeetCodeService) private readonly leetcode: LeetCodeService,
   ) {}
 
-  async findAll(
+  findAll(
     accessToken: string,
     tags: string[] = [],
+    pagination?: PostPagination,
+  ): Promise<PostsPage> {
+    return this.findPage('posts', accessToken, tags, pagination);
+  }
+
+  findFollowing(
+    accessToken: string,
+    tags: string[] = [],
+    pagination?: PostPagination,
+  ): Promise<PostsPage> {
+    return this.findPage('following_posts', accessToken, tags, pagination);
+  }
+
+  private async findPage(
+    source: 'posts' | 'following_posts',
+    accessToken: string,
+    tags: string[],
     { cursor, limit }: PostPagination = { limit: 50 },
   ): Promise<PostsPage> {
     const client = this.supabase.forUser(accessToken);
 
-    // Join problems only when filtering by their tags.
+    // PostgREST follows the problem_tags junction. The separate filter embed
+    // lets us return every tag on each matching problem.
     let query = client
-      .from('posts')
+      .from(source)
       .select(
         tags.length > 0
-          ? '*, problems!inner(problem_tags)'
+          ? '*, problems!inner(tags(tag_name), matching_tags:tags!inner())'
           : '*',
       );
 
-    // Return posts whose problem matches ANY selected tag.
     if (tags.length > 0) {
-      query = query.overlaps('problems.problem_tags', tags);
+      // Quote each name for PostgREST's in-list grammar, including literal quotes and backslashes.
+      const tagNames = tags.map(tag => {
+        const escaped = tag.replace(/["\\]/g, character => `\\${character}`);
+        return `"${escaped}"`;
+      });
+      query = query.filter('problems.matching_tags.tag_name', 'in', `(${tagNames.join(',')})`);
     }
 
     if (cursor) {
@@ -77,7 +99,7 @@ export class PostsService {
       .order('post_id', { ascending: false })
       // One extra row tells us whether another page exists without a count query.
       .limit(limit + 1)
-      .returns<PostRecord[]>();
+      .returns<(PostRecord & { problems?: { tags: { tag_name: string }[] } })[]>();
 
     if (error) {
       this.fail(status, 'Unable to fetch posts');
@@ -85,7 +107,10 @@ export class PostsService {
 
     const rows = data ?? [];
     const hasMore = rows.length > limit;
-    const posts = rows.slice(0, limit);
+    const posts = rows.slice(0, limit).map(({ problems, ...post }) => {
+      if (!problems) return post;
+      return { ...post, problems: { problem_tags: problems.tags.map(tag => tag.tag_name) } };
+    });
     const lastPost = posts.at(-1);
 
     return {
