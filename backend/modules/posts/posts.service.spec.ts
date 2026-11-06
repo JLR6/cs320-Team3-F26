@@ -71,34 +71,40 @@ describe('PostsService', () => {
     expect(url.searchParams.has('created_at')).toBe(false);
     expect(url.searchParams.has('post_id')).toBe(false);
     expect(url.searchParams.has('offset')).toBe(false);
-    expect(url.searchParams.has('problems.problem_tags')).toBe(false);
+    expect(url.searchParams.has('problems.matching_tags.tag_name')).toBe(false);
     expect(new Headers(options?.headers).get('authorization')).toBe(
       'Bearer user-access-token',
     );
   });
 
   it.each([
-    { tags: ['Array'] },
-    { tags: ['Array', 'Hash Table'] },
-  ])('uses an inner join and any-tag overlap for %j', async ({ tags }) => {
-    const posts = [{
-      post_id: 'post-1',
-      post_description: 'A matching post',
-      problems: { problem_tags: [tags[0]] },
-    }];
-    fetchMock.mockResolvedValueOnce(Response.json(posts));
+    { tags: ['Array'], filter: 'in.("Array")' },
+    { tags: ['Array', 'Hash Table'], filter: 'in.("Array","Hash Table")' },
+    {
+      tags: ['Set, Map (Advanced)', String.raw`Path\to "Graph"`],
+      filter: String.raw`in.("Set, Map (Advanced)","Path\\to \"Graph\"")`,
+    },
+  ])('filters by any selected tag and returns all tags for %j', async ({ tags, filter }) => {
+    const post = { post_id: 'post-1', post_description: 'A matching post' };
+    fetchMock.mockResolvedValueOnce(Response.json([{
+      ...post,
+      problems: { tags: [{ tag_name: tags[0] }, { tag_name: 'Sorting' }] },
+    }]));
 
     await expect(service.findAll('user-access-token', tags)).resolves.toEqual({
-      posts, nextCursor: null, hasMore: false,
+      posts: [{ ...post, problems: { problem_tags: [tags[0], 'Sorting'] } }],
+      nextCursor: null,
+      hasMore: false,
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [input, options] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
     expect(url.pathname).toBe('/rest/v1/posts');
-    expect(url.searchParams.get('select')).toBe('*,problems!inner(problem_tags)');
-    // "ov" matches any selected array element; "cs" would require every tag.
-    expect(url.searchParams.get('problems.problem_tags')).toBe(`ov.{${tags.join(',')}}`);
+    expect(url.searchParams.get('select')).toBe(
+      '*,problems!inner(tags(tag_name),matching_tags:tags!inner())',
+    );
+    expect(url.searchParams.get('problems.matching_tags.tag_name')).toBe(filter);
     expect(url.searchParams.get('order')).toBe('created_at.desc.nullslast,post_id.desc');
     expect(url.searchParams.get('limit')).toBe('51');
     expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-access-token');
@@ -112,7 +118,7 @@ describe('PostsService', () => {
     const [input] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
     expect(url.searchParams.get('select')).toBe('*');
-    expect(url.searchParams.has('problems.problem_tags')).toBe(false);
+    expect(url.searchParams.has('problems.matching_tags.tag_name')).toBe(false);
   });
 
   it('returns an empty final page when no posts match the selected tags', async () => {
@@ -120,6 +126,26 @@ describe('PostsService', () => {
     await expect(service.findAll('user-token', ['Graph'])).resolves.toEqual({
       posts: [], nextCursor: null, hasMore: false,
     });
+  });
+
+  it('queries followed authors with the user token and the shared tag filter', async () => {
+    const post = { post_id: 'post-1', post_description: 'A matching post' };
+    fetchMock.mockResolvedValueOnce(Response.json([{
+      ...post, problems: { tags: [{ tag_name: 'Array' }, { tag_name: 'Sorting' }] },
+    }]));
+
+    await expect(service.findFollowing('user-token', ['Array', 'Hash Table'])).resolves.toEqual({
+      posts: [{ ...post, problems: { problem_tags: ['Array', 'Sorting'] } }],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [input, options] = fetchMock.mock.calls[0];
+    const url = new URL(String(input));
+    expect(url.pathname).toBe('/rest/v1/following_posts');
+    expect(url.searchParams.get('problems.matching_tags.tag_name')).toBe('in.("Array","Hash Table")');
+    expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
   });
 
   it('hides database errors when filtering by tags', async () => {
@@ -219,18 +245,22 @@ describe('PostsService', () => {
 
     it('keeps any-tag filtering and nested problem tags when continuing a page', async () => {
       const cursor = { created_at: timestamp, post_id: rows[0].post_id };
+      fetchMock.mockResolvedValueOnce(Response.json(rows.slice(1).map(post => ({
+        ...post, problems: { tags: [{ tag_name: 'Array' }, { tag_name: 'Hash Table' }] },
+      }))));
       const filteredPosts = rows.slice(1).map(post => ({
         ...post, problems: { problem_tags: ['Array', 'Hash Table'] },
       }));
-      fetchMock.mockResolvedValueOnce(Response.json(filteredPosts));
 
       await expect(service.findAll('user-token', ['Array', 'Hash Table'], { cursor, limit: 2 }))
         .resolves.toEqual({ posts: filteredPosts, nextCursor: null, hasMore: false });
 
       const [input, options] = fetchMock.mock.calls[0];
       const url = new URL(String(input));
-      expect(url.searchParams.get('select')).toBe('*,problems!inner(problem_tags)');
-      expect(url.searchParams.get('problems.problem_tags')).toBe('ov.{Array,Hash Table}');
+      expect(url.searchParams.get('select')).toBe(
+        '*,problems!inner(tags(tag_name),matching_tags:tags!inner())',
+      );
+      expect(url.searchParams.get('problems.matching_tags.tag_name')).toBe('in.("Array","Hash Table")');
       expect(url.searchParams.get('or')).toBe(
         `(created_at.lt.${timestamp},and(created_at.eq.${timestamp},post_id.lt.${cursor.post_id}),created_at.is.null)`,
       );
