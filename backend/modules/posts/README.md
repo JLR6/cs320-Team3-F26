@@ -7,6 +7,7 @@ requirement for a Bearer token.
 | Method | Route | Result |
 | --- | --- | --- |
 | GET | `/posts` | A cursor-paginated page of posts, newest first (200) |
+| GET | `/posts/following` | A cursor-paginated page of posts from accounts the signed-in user follows (200) |
 | GET | `/posts/:id` | One post (200) |
 | POST | `/posts` | Created post (201) |
 | PATCH | `/posts/:id` | Updated post (200) |
@@ -18,17 +19,16 @@ The route `:id` identifies the `post_id` column. Post records match the migratio
 
 ## Filtering posts by problem tags
 
-`GET /posts` accepts an optional, repeated `tag` query parameter:
+`GET /posts` and `GET /posts/following` accept an optional, repeated `tag` query parameter.
 
 ```http
 GET /posts?tag=Array
-GET /posts?tag=Array&tag=Hash%20Table
+GET /posts/following?tag=Array&tag=Hash%20Table
 ```
 
-Multiple tags use **any-tag matching**: the second request returns posts whose
-problem has `Array`, `Hash Table`, or both. Tags belong to the related
-`public.problems.problem_tags` array, not the post itself. Filtered queries use an
-inner join so posts with no matching problem tag are excluded.
+Multiple tags use **any-tag matching**. The second request returns posts whose
+problem has `Array`, `Hash Table`, or both. Filtered queries join
+`public.problems` to `public.tags` through `public.problem_tags`.
 
 Tag values are trimmed and duplicates removed. Matching is case-sensitive, so use
 the stored capitalization. URL-encode spaces and other reserved characters; send
@@ -39,8 +39,8 @@ is required for both filtered and unfiltered requests.
 
 Both versions return a page object containing up to 50 posts ordered by
 `created_at` descending (nulls last), then `post_id` descending. No matches return
-`{ "posts": [], "nextCursor": null, "hasMore": false }`. Filtered posts also include
-the related problem's tags:
+`{ "posts": [], "nextCursor": null, "hasMore": false }`. Filtered posts include
+all tags on the related problem, including tags outside the filter.
 
 ```json
 {
@@ -58,9 +58,9 @@ original post-only shape without the nested `problems` object.
 
 ## Cursor pagination for infinite scrolling
 
-**Response contract change:** `GET /posts` now returns
-`{ posts, nextCursor, hasMore }` instead of a bare array. Consumers must read
-`response.posts`. The other post endpoints keep their existing response shapes.
+Both feed endpoints return `{ posts, nextCursor, hasMore }`. For the following
+feed, the server resolves followed accounts from the Bearer token. A user who
+follows nobody receives an empty page.
 
 ```http
 GET /posts?limit=20&tag=Array
@@ -171,9 +171,9 @@ then call `observePosts` with the new tags. This aborts stale requests and reset
 the accumulated posts and cursor. A request failure pauses automatic fetching
 until `retry()` is called; reaching the final page stops observing the marker.
 
-Apply the pagination index migration with the other checked-in migrations before
-deploying. It indexes `(created_at DESC NULLS LAST, post_id DESC)` to support feed
-ordering without offset pagination.
+Apply the checked-in migrations before deploying, including the pagination index
+and the `following_posts` view. The view uses the requesting user's database
+permissions and checks follow relationships before applying pagination.
 
 ## Creating and updating posts
 
