@@ -1,5 +1,4 @@
 'use client';
-
 import { MoreHorizontal, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
@@ -8,40 +7,35 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import type { Post } from '@/types/post';
 
-interface PostActionsMenuProps {
-  post: Post;
-  onEdit: (post: Post) => void;
-  onDelete: (post: Post) => void;
-}
-
-// The "..." menu with Edit / Delete.
-// Only render this for the post's owner (the parent checks that).
+// The "..." menu. Only show it to the post's owner.
 export function PostActionsMenu({
-  post,
   onEdit,
   onDelete,
-}: PostActionsMenuProps) {
+}: {
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   return (
     <DropdownMenu>
-      {/* "render" makes the trigger draw our Button instead of its own plain button */}
       <DropdownMenuTrigger
         render={
-          <Button variant="ghost" size="icon" aria-label="Post options" />
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative z-10 size-7"
+            aria-label="Post options"
+          >
+            <MoreHorizontal className="size-4" />
+          </Button>
         }
-      >
-        <MoreHorizontal className="h-4 w-4" />
-      </DropdownMenuTrigger>
+      />
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => onEdit(post)}>
-          <Pencil className="mr-2 h-4 w-4" /> Edit
+        <DropdownMenuItem onClick={onEdit}>
+          <Pencil className="size-4" /> Edit Post
         </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={() => onDelete(post)}
-          className="text-destructive"
-        >
-          <Trash2 className="mr-2 h-4 w-4" /> Delete
+        <DropdownMenuItem onClick={onDelete}>
+          <Trash2 className="size-4" /> Delete
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

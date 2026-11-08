@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState } from 'react';
 import { PostFormDialog } from './PostFormDialog';
-import * as api from '@/lib/posts-api';
+import * as api from '@/lib/posts/posts-api';
 import type { PostInput } from '@/types/post';
 
 const CreatePostContext = createContext<{

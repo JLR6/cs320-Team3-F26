@@ -1,11 +1,11 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { CreatePostProvider, useCreatePost } from '../CreatePostProvider';
-import * as api from '@/lib/posts-api';
+import * as api from '@/lib/posts/posts-api';
 import type { Post, PostInput } from '@/types/post';
 
 // swap the real api for a fake so no data is really saved
-vi.mock('@/lib/posts-api', () => ({ createPost: vi.fn() }));
+vi.mock('@/lib/posts/posts-api', () => ({ createPost: vi.fn() }));
 
 // swap the real dialog for a simple fake
 // the path is relative to this test file, so it needs the ../

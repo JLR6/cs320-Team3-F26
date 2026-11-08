@@ -1,220 +1,236 @@
 'use client';
-
-import { ExternalLink, ArrowLeft } from 'lucide-react';
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { DifficultyBadge } from './presentation/DifficultyBadge';
-import { TagBadge } from './presentation/TagBadge';
-import { LikeButton } from './LikeButton';
-import { CommentSection } from './CommentSection';
-import { PostActionsMenu } from './PostActionsMenu';
-import { formatTimeAgo } from '@/lib/utils';
-import { isHttpUrl } from '@/lib/post-utils';
+import { format } from 'date-fns';
+import { ChevronLeft, ExternalLink, MessageCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { errorMessage } from '@/lib/utils';
+import { isHttpUrl } from '@/lib/posts/post-utils';
+import {
+  DIFFICULTY_COLOR,
+  formatCount,
+  postTags,
+  problemTitle,
+  timeAgo,
+} from '@/lib/utils';
+import {
+  addComment,
+  deletePost,
+  getPostById,
+  toggleLike,
+  updatePost,
+} from '@/lib/posts/posts-api';
+import { useCurrentUser } from '@/lib/utils';
 import type { Post, PostInput } from '@/types/post';
-import { PostFormDialog } from './PostFormDialog';
 import { DeletePostDialog } from './DeletePostDialog';
-import * as api from '@/lib/posts-api';
-import { FEED_PATH } from '@/lib/utils';
+import { LikeButton } from './LikeButton';
+import { PostFormDialog } from './PostFormDialog';
+import { PostActionsMenu } from './PostActionsMenu';
+import { UserAvatar } from './presentation/UserAvatar';
 
-interface PostDetailProps {
-  post: Post;
-  currentUserId?: string; // undefined = logged out
-  onLike: (postId: string) => void;
-  onComment: (postId: string, content: string) => Promise<void> | void;
-  onEdit: (post: Post) => void;
-  onDelete: (post: Post) => void;
-}
+export function PostDetail({ id }: { id: string }) {
+  const router = useRouter();
+  const user = useCurrentUser();
+  const [post, setPost] = useState<Post | null | undefined>(undefined); // undefined = loading, null = not found
+  const [error, setError] = useState<string | null>(null);
+  const [text, setText] = useState('');
+  const [editing, setEditing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
-// Full version of a post: everything the card shows, plus complexity, solution link and comments.
-// It only displays data and calls the handlers it's given, so it can be used on a page
-// (see PostDetailView) or dropped into a dialog/modal if the design needs that.
-export function PostDetail({
-  post,
-  currentUserId,
-  onLike,
-  onComment,
-  onEdit,
-  onDelete,
-}: PostDetailProps) {
-  const isOwner = currentUserId === post.author.id;
-  const isLoggedIn = !!currentUserId;
-  const hasComplexity = post.timeComplexity || post.spaceComplexity;
+  useEffect(() => {
+    getPostById(id)
+      .then(setPost)
+      .catch((e) => {
+        setPost(null);
+        setError(errorMessage(e, "Couldn't load this post"));
+      });
+  }, [id]);
+
+  if (post === undefined)
+    return (
+      <p className="p-10 text-center text-sm text-muted-foreground">
+        Loading...
+      </p>
+    );
+  if (post === null)
+    return (
+      <p className="p-10 text-center text-sm text-muted-foreground">
+        {error ?? "This post doesn't exist."}
+      </p>
+    );
+
+  // The form dialog shows errors, so this one lets them pass through
+  async function handleEdit(input: PostInput) {
+    setPost(await updatePost(id, input));
+    toast.success('Post updated');
+  }
+
+  async function handleDelete() {
+    try {
+      await deletePost(id);
+      toast.success('Post deleted');
+      router.push('/feed');
+    } catch (e) {
+      toast.error(errorMessage(e, "Couldn't delete the post"));
+      setDeleting(false);
+    }
+  }
+
+  async function handleLike() {
+    try {
+      setPost(await toggleLike(id));
+    } catch (e) {
+      toast.error(errorMessage(e, "Couldn't update the like"));
+    }
+  }
+
+  async function handleComment() {
+    try {
+      const c = await addComment(id, text.trim());
+      setPost((p) => (p ? { ...p, comments: [...p.comments, c] } : p));
+      setText('');
+    } catch (e) {
+      toast.error(errorMessage(e, "Couldn't post the comment"));
+    }
+  }
+
+  const isOwner = post.author.id === user?.id;
+  const newestFirst = [...post.comments].reverse();
 
   return (
-    <article className="space-y-4">
-      {/* HEADER: author + time, owner menu */}
-      <div className="flex items-start justify-between">
-        <p className="text-sm text-muted-foreground">
-          <span className="font-medium text-foreground">
-            {post.author.username}
-          </span>{' '}
-          · {formatTimeAgo(post.createdAt)}
-          {post.updatedAt && ' (edited)'}
-        </p>
+    <div className="mx-auto w-full max-w-3xl space-y-4 p-4">
+      {/* Back + author */}
+      <div className="flex items-center gap-3">
+        <Button
+          variant="secondary"
+          size="icon"
+          className="size-8"
+          aria-label="Back"
+          onClick={() => router.back()}
+        >
+          <ChevronLeft className="size-4" />
+        </Button>
+        <UserAvatar name={post.author.username} className="size-9" />
+        <div className="text-sm">
+          <p className="font-semibold">{post.author.username}</p>
+          {post.createdAt && (
+            <p className="text-xs text-muted-foreground">
+              {format(new Date(post.createdAt), 'MMM d, yyyy')}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Title + menu */}
+      <div className="flex items-center justify-between">
+        <h1 className="text-xl font-bold">
+          {problemTitle(post)}
+          {post.difficulty && (
+            <span className={DIFFICULTY_COLOR[post.difficulty]}>
+              {' '}
+              ({post.difficulty})
+            </span>
+          )}
+        </h1>
         {isOwner && (
-          <PostActionsMenu post={post} onEdit={onEdit} onDelete={onDelete} />
+          <PostActionsMenu
+            onEdit={() => setEditing(true)}
+            onDelete={() => setDeleting(true)}
+          />
         )}
       </div>
 
-      {/* TITLE: problem number + name, difficulty, tags */}
-      <div className="space-y-2">
-        <h1 className="text-2xl font-semibold">
-          #{post.problemNumber} {post.problemName}
-        </h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <DifficultyBadge difficulty={post.difficulty} />
-          {post.tags.map((tag) => (
-            <TagBadge key={tag} tag={tag} />
+      {/* Description + tags */}
+      <div className="space-y-2 text-sm">
+        <p>{post.description}</p>
+        <div className="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+          {postTags(post).map((t) => (
+            <span key={t}>#{t}</span>
           ))}
         </div>
       </div>
 
-      {/* DESCRIPTION: full text, keeps the author's line breaks */}
-      <p className="whitespace-pre-wrap">{post.description}</p>
-
-      {/* COMPLEXITY: only shown if the author filled it in */}
-      {hasComplexity && (
-        <dl className="grid grid-cols-2 gap-2 text-sm">
-          <div>
-            <dt className="text-muted-foreground">Time complexity</dt>
-            <dd className="font-mono">{post.timeComplexity || '—'}</dd>
-          </div>
-          <div>
-            <dt className="text-muted-foreground">Space complexity</dt>
-            <dd className="font-mono">{post.spaceComplexity || '—'}</dd>
-          </div>
-        </dl>
-      )}
-
-      {/* SOLUTION LINK: only shown if it's a normal web link */}
-      {post.solutionUrl && isHttpUrl(post.solutionUrl) && (
-        <a
-          href={post.solutionUrl}
+      {/* LeetCode blocks iframes, so we link out instead of embedding */}
+      {post.solution && isHttpUrl(post.solution) && (
+        <Link
+          href={post.solution}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
+          className="flex items-center justify-between rounded-xl border p-4 text-sm hover:bg-muted/50"
         >
-          View solution on LeetCode <ExternalLink className="h-3 w-3" />
-        </a>
+          <span className="min-w-0 truncate">
+            <span className="font-medium">View solution on LeetCode</span>{' '}
+            <span className="text-muted-foreground">{post.solution}</span>
+          </span>
+          <ExternalLink className="size-4 shrink-0" />
+        </Link>
       )}
 
-      {/* ACTIONS: like (disabled when logged out) */}
-      <div className="flex items-center gap-1">
+      {/* Counts */}
+      <div className="flex items-center justify-end gap-4 border-b pb-2">
+        <span className="flex items-center gap-1 text-xs text-muted-foreground">
+          <MessageCircle className="size-4" />{' '}
+          {formatCount(post.comments.length)}
+        </span>
         <LikeButton
-          liked={post.likedByMe}
           count={post.likeCount}
-          onToggle={() => onLike(post.id)}
-          disabled={!isLoggedIn}
+          liked={post.likedByMe}
+          disabled={!user}
+          onClick={handleLike}
         />
       </div>
 
-      {/* COMMENTS: list + add-comment box (box hidden when logged out) */}
-      <CommentSection
-        comments={post.comments}
-        onAdd={(content) => onComment(post.id, content)}
-        canComment={isLoggedIn}
+      {/* New comment */}
+      <div className="rounded-xl border p-3">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={user ? 'Type comment here...' : 'Log in to comment'}
+          disabled={!user}
+          rows={2}
+          className="resize-none border-0 shadow-none focus-visible:ring-0"
+        />
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            disabled={!user || !text.trim()}
+            onClick={handleComment}
+          >
+            Comment
+          </Button>
+        </div>
+      </div>
+
+      {/* Comments (newest first) */}
+      {newestFirst.map((c) => (
+        <div key={c.id} className="flex gap-3">
+          <UserAvatar name={c.author.username} className="size-8" />
+          <div className="flex-1 rounded-xl bg-muted/60 p-3 text-sm">
+            <p>
+              <span className="font-semibold">{c.author.username}</span>{' '}
+              <span className="text-xs text-muted-foreground">
+                • {timeAgo(c.createdAt)}
+              </span>
+            </p>
+            <p className="mt-1">{c.content}</p>
+          </div>
+        </div>
+      ))}
+
+      <PostFormDialog
+        open={editing}
+        onOpenChange={setEditing}
+        post={post}
+        onSubmit={handleEdit}
       />
-    </article>
-  );
-}
-
-interface PostDetailViewProps {
-  postId: string;
-  currentUserId?: string;
-}
-
-// Loads ONE post and wires up its actions (like, comment, edit, delete).
-// PostList does the same job for many posts.
-// The page renders this with key={id}, so opening a different post starts a fresh
-// copy of this component (loading = true again) instead of reusing old state.
-export function PostDetailView({ postId, currentUserId }: PostDetailViewProps) {
-  const router = useRouter();
-  const [post, setPost] = useState<Post | null>(null); // null = not loaded yet, or doesn't exist
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [editing, setEditing] = useState(false); // is the edit dialog open?
-  const [deleting, setDeleting] = useState(false); // is the delete dialog open?
-
-  // Load the post once when the page opens.
-  // State is only set inside the .then/.catch callbacks (after the data arrives),
-  // never directly in the effect body.
-  useEffect(() => {
-    let cancelled = false; // ignore results that arrive after we've left the page
-    api
-      .getPostById(postId)
-      .then((found) => {
-        if (!cancelled) setPost(found);
-      })
-      .catch(() => {
-        if (!cancelled) setError("Couldn't load this post. Please try again.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [postId]);
-
-  async function handleLike(id: string) {
-    setPost(await api.toggleLike(id)); // TODO: optimistic update
-  }
-  async function handleComment(id: string, content: string) {
-    const comment = await api.addComment(id, content);
-    setPost((p) => (p ? { ...p, comments: [...p.comments, comment] } : p));
-  }
-  async function handleEdit(input: PostInput) {
-    if (post) setPost(await api.updatePost(post.id, input));
-  }
-  async function handleDelete() {
-    if (!post) return;
-    await api.deletePost(post.id);
-    setDeleting(false);
-    router.push(FEED_PATH); // the post is gone, so go back to the feed
-  }
-
-  return (
-    <div className="space-y-4">
-      <Link
-        href={FEED_PATH}
-        className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:underline"
-      >
-        <ArrowLeft className="h-4 w-4" /> Back to feed
-      </Link>
-
-      {loading && <p className="text-muted-foreground">Loading...</p>}
-      {error && <p className="text-destructive">{error}</p>}
-      {!loading && !error && !post && (
-        <p className="text-muted-foreground">
-          This post doesn't exist or was deleted.
-        </p>
-      )}
-
-      {post && (
-        <>
-          <PostDetail
-            post={post}
-            currentUserId={currentUserId}
-            onLike={handleLike}
-            onComment={handleComment}
-            onEdit={() => setEditing(true)}
-            onDelete={() => setDeleting(true)}
-          />
-          <PostFormDialog
-            open={editing}
-            onOpenChange={setEditing}
-            post={post}
-            onSubmit={handleEdit}
-          />
-          <DeletePostDialog
-            post={deleting ? post : null}
-            onCancel={() => setDeleting(false)}
-            onConfirm={handleDelete}
-          />
-        </>
-      )}
+      <DeletePostDialog
+        open={deleting}
+        onOpenChange={setDeleting}
+        onConfirm={handleDelete}
+      />
     </div>
   );
 }

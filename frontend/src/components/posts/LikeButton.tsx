@@ -1,36 +1,30 @@
 'use client';
-
 import { Heart } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { formatCount } from '@/lib/utils';
 import { cn } from '@/lib/utils';
 
-interface LikeButtonProps {
-  liked: boolean;
-  count: number;
-  onToggle: () => void;
-  disabled?: boolean; // true for logged-out users
-}
-
-// like button is the leetcode orange, but if want to change make it red-500 replacing primary
-
+// Heart + count. Orange when liked. Disabled when logged out.
 export function LikeButton({
-  liked,
   count,
-  onToggle,
+  liked,
   disabled,
-}: LikeButtonProps) {
+  onClick,
+}: {
+  count: number;
+  liked: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      onClick={onToggle}
+    <button
+      type="button"
+      onClick={onClick}
       disabled={disabled}
-      aria-pressed={liked}
+      title={disabled ? 'Log in to like' : undefined}
+      className="relative z-10 flex items-center gap-1 text-xs text-muted-foreground disabled:cursor-not-allowed"
     >
-      <Heart
-        className={cn('mr-1 h-4 w-4', liked && 'fill-primary text-primary')}
-      />
-      {count}
-    </Button>
+      <Heart className={cn('size-4', liked && 'fill-primary text-primary')} />
+      {formatCount(count)}
+    </button>
   );
 }

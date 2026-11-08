@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { DIFFICULTIES } from '../constants';
-import { parseTags, isLeetCodeUrl } from '../post-utils';
+import { parseTags, isLeetCodeUrl } from '../posts/post-utils';
 
 // Rules for the create/edit post form.
 //
@@ -8,35 +8,31 @@ import { parseTags, isLeetCodeUrl } from '../post-utils';
 //   1. CHECK the text (required fields, valid number, leetcode.com link...)
 //   2. CONVERT it into a real PostInput (number, list of tags, no empty link)
 // Each message below is shown right under its field.
+// Validation rules for the post form (every field is a string to keep the form simple)
 export const postFormSchema = z.object({
   problemNumber: z
     .string()
     .trim()
-    .regex(/^[1-9]\d*$/, 'Enter a valid problem number.') // whole number, 1 or more
-    .transform(Number), // "42" -> 42
-
-  problemName: z.string().trim().min(1, 'Problem name is required.'),
-
+    .regex(/^[1-9]\d*$/, 'Enter a number greater than 0')
+    .transform(Number),
+  problemName: z.string().trim().min(1, 'Enter the problem name'),
   difficulty: z.enum(DIFFICULTIES),
-
-  description: z.string().trim().min(1, 'Add a short description.'),
-
-  tags: z.string().transform(parseTags), // "#BFS #DP" -> ["BFS", "DP"]
-
-  // Optional: an empty string is fine
-  timeComplexity: z.string().trim(),
-  spaceComplexity: z.string().trim(),
-
-  // Optional: empty is fine, otherwise it must be a leetcode.com link
   solutionUrl: z
     .string()
     .trim()
+    .transform((url) => (url === '' ? undefined : url))
     .refine(
-      (url) => url === '' || isLeetCodeUrl(url),
+      (url) => url === undefined || isLeetCodeUrl(url),
       'Solution link should be a leetcode.com URL.',
-    )
-    .transform((url) => url || undefined), // "" -> undefined
+    ),
+  description: z
+    .string()
+    .trim()
+    .min(1, 'Add a description')
+    .max(1000, 'Max 1000 characters'),
+  tags: z.string().transform(parseTags), // comma separated, like "Array, Hash Table"
+  timeComplexity: z.string().trim(),
+  spaceComplexity: z.string().trim(),
 });
 
-// What the form fields hold while the user is typing (all text).
 export type PostFormValues = z.input<typeof postFormSchema>;

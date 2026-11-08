@@ -42,7 +42,7 @@ export function PostForm({ initial, onSubmit, onCancel }: PostFormProps) {
     tags: initial?.tags.map((t) => `#${t}`).join(' ') ?? '',
     timeComplexity: initial?.timeComplexity ?? '',
     spaceComplexity: initial?.spaceComplexity ?? '',
-    solutionUrl: initial?.solutionUrl ?? '',
+    solutionUrl: initial?.solution ?? '',
   });
   const [errors, setErrors] = useState<FieldErrors>({});
   const [formError, setFormError] = useState<string | null>(null); // error from saving (not a field)
@@ -61,7 +61,7 @@ export function PostForm({ initial, onSubmit, onCancel }: PostFormProps) {
     e.preventDefault(); // stop the browser's default page reload
     setFormError(null);
 
-    // Check the text with zod. On success, result.data is a ready-to-save PostInput.
+    // Check the text with zod before mapping it to the backend input shape
     const result = postFormSchema.safeParse(values);
     if (!result.success) {
       const fieldErrors: FieldErrors = {};
@@ -76,7 +76,13 @@ export function PostForm({ initial, onSubmit, onCancel }: PostFormProps) {
 
     setSubmitting(true);
     try {
-      await onSubmit(result.data);
+      const data = result.data;
+      await onSubmit({
+        problemNumber: Number(data.problemNumber),
+        description: data.description,
+        solutionUrl: data.solutionUrl ?? '',
+        timeComplexity: data.timeComplexity,
+      });
     } catch {
       setFormError("Couldn't save your post. Please try again.");
     } finally {
@@ -117,9 +123,9 @@ export function PostForm({ initial, onSubmit, onCancel }: PostFormProps) {
         <Label>Difficulty</Label>
         <Select
           value={values.difficulty}
-          onValueChange={(v) =>
-            setField('difficulty', v as PostFormValues['difficulty'])
-          }
+          onValueChange={(v: string | null) => {
+            if (v) setField('difficulty', v as PostFormValues['difficulty']);
+          }}
         >
           <SelectTrigger>
             <SelectValue />
