@@ -3,11 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-<<<<<<< HEAD
 import { timeAgo } from '@/lib/utils';
-=======
-import { formatTimeAgo } from '@/lib/format';
->>>>>>> 8b57a6e (basic files and structure correction with the addition of all necessary post components and an example page. all post-related components are commented and documented more or less. tests may need to be added)
 import type { PostComment } from '@/types/post';
 
 // props are like parameters
