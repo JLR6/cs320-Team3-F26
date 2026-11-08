@@ -23,7 +23,7 @@ import {
   toggleLike,
   updatePost,
 } from '@/lib/posts/posts-api';
-import { useCurrentUser } from '@/lib/utils';
+import { useCurrentUser } from '@/lib/client-utils';
 import type { Post, PostInput } from '@/types/post';
 import { DeletePostDialog } from './DeletePostDialog';
 import { LikeButton } from './LikeButton';

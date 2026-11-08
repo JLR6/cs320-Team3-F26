@@ -15,7 +15,7 @@ export default defineConfig({
       exclude: [
         // for explicitly visual components, unit tests only prove if they render or not which isn't valuable
         'src/components/ui/**/*.{ts,tsx}', // Generated components, doesn't make sense to test them
-        'src/components/auth/**/*.{ts,tsx}', // don't include auth in this pr for now, will be tested in a separate pr
+        'src/components/**/presentation/**/*.{ts,tsx}', // presentation components don't have anything worth testing as they are purely visual
         'src/app/providers.tsx', // tanstack boilerplate, not worth testing
         'src/components/ThemeProvider.tsx', // theme boilerplate, not worth testing
         // these are components that are more worth testing visually, not through unit tests
