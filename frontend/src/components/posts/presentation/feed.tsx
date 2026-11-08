@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errorMessage } from '@/lib/utils';
+import { useCurrentUser } from '@/lib/client-utils';
 import {
   createPost,
   deletePost,
@@ -12,7 +13,6 @@ import {
   toggleLike,
   updatePost,
 } from '@/lib/posts/posts-api';
-import { useCurrentUser } from '@/lib/utils';
 import type { FeedType } from '@/types/post';
 import type { Post, PostInput } from '@/types/post';
 import { DeletePostDialog } from '../DeletePostDialog';
