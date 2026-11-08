@@ -29,7 +29,7 @@ describe('PostForm', () => {
     await user.click(screen.getByRole('button', { name: 'Post' }));
 
     expect(onSubmit).toHaveBeenCalledWith(
-      expect.objectContaining({ problemName: 'Two Sum' }),
+      expect.objectContaining({ problemNumber: 1 }),
     );
   });
 

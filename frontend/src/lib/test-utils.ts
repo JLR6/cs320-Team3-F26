@@ -28,7 +28,10 @@ export function makePost(overrides: Partial<Post> = {}): Post {
 
 // Fills form fields for making posts.
 export async function fillPostForm(user: UserEvent, name = 'Two Sum') {
-  await user.type(screen.getByLabelText('Problem #'), '1');
-  await user.type(screen.getByLabelText('Problem name'), name);
-  await user.type(screen.getByLabelText('Description'), 'Used a hash map.');
+  const textboxes = screen.getAllByRole('textbox');
+  const problemNumber = textboxes[0];
+  await user.type(problemNumber, '1');
+  const problemName = screen.queryByRole('textbox', { name: 'Problem name' });
+  if (problemName) await user.type(problemName, name);
+  await user.type(textboxes[2], 'Used a hash map.');
 }

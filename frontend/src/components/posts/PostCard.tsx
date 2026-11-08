@@ -1,110 +1,97 @@
-'use client';
-
 import Link from 'next/link';
-import { MessageSquare } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import {
-  Card,
-  CardContent,
-  CardFooter,
-  CardHeader,
-} from '@/components/ui/card';
-import { DifficultyBadge } from './presentation/DifficultyBadge';
-import { TagBadge } from './presentation/TagBadge';
+  DIFFICULTY_COLOR,
+  formatCount,
+  postTags,
+  problemTitle,
+  timeAgo,
+} from '@/lib/utils';
+import type { Post } from '@/types/post';
 import { LikeButton } from './LikeButton';
 import { PostActionsMenu } from './PostActionsMenu';
-import { formatTimeAgo } from '@/lib/utils';
-import { postPath } from '@/lib/utils';
-import type { Post } from '@/types/post';
+import { UserAvatar } from './presentation/UserAvatar';
 
-interface PostCardProps {
+type Props = {
   post: Post;
-  currentUserId?: string; // undefined = logged out
-  onLike: (postId: string) => void;
-  onEdit: (post: Post) => void;
-  onDelete: (post: Post) => void;
-}
+  isOwner: boolean;
+  canInteract: boolean;
+  onLike: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+};
 
-// Short version of a post, shown in feeds. Clicking it opens the full post (PostDetail).
-//
-// How the whole card is clickable: the title <Link> has an invisible layer
-// ("after:absolute after:inset-0") that stretches over the entire card.
-// Buttons that must stay clickable on their own (like, menu) sit above it with "relative z-10".
+// One post in the feed. The whole card links to the post page;
+// buttons use "relative z-10" so they stay clickable on top of that link.
 export function PostCard({
   post,
-  currentUserId,
+  isOwner,
+  canInteract,
   onLike,
   onEdit,
   onDelete,
-}: PostCardProps) {
-  const isOwner = currentUserId === post.author.id;
-  const isLoggedIn = !!currentUserId;
-
+}: Props) {
   return (
-    <Card className="relative hover:bg-muted/50">
-      {/* HEADER: author + time, problem title, difficulty + tags, owner menu */}
-      <CardHeader className="flex flex-row items-start justify-between space-y-0">
-        <div className="space-y-1">
-          <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-foreground">
-              {post.author.username}
-            </span>{' '}
-            · {formatTimeAgo(post.createdAt)}
-            {post.updatedAt && ' (edited)'}
-          </p>
-
-          <h3 className="text-lg font-semibold">
+    <article className="flex gap-3">
+      <UserAvatar name={post.author.username} className="size-9" />
+      <div className="relative min-w-0 flex-1 rounded-xl bg-muted/60 p-4">
+        {/* Top line: author • problem (difficulty) • time */}
+        <div className="flex items-start justify-between gap-2">
+          <p className="text-sm">
+            <span className="font-semibold">{post.author.username}</span>
+            <span className="mx-2 text-muted-foreground">•</span>
             <Link
-              href={postPath(post.id)}
-              className="after:absolute after:inset-0"
+              href={`/posts/${post.id}`}
+              className="font-semibold after:absolute after:inset-0"
             >
-              #{post.problemNumber} {post.problemName}
+              {problemTitle(post)}
+              {post.difficulty && (
+                <span className={DIFFICULTY_COLOR[post.difficulty]}>
+                  {' '}
+                  ({post.difficulty})
+                </span>
+              )}
             </Link>
-          </h3>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <DifficultyBadge difficulty={post.difficulty} />
-            {post.tags.map((tag) => (
-              <TagBadge key={tag} tag={tag} />
-            ))}
-          </div>
+            <span className="mx-2 text-muted-foreground">•</span>
+            <span className="text-muted-foreground">
+              {timeAgo(post.createdAt)}
+            </span>
+          </p>
+          {isOwner && <PostActionsMenu onEdit={onEdit} onDelete={onDelete} />}
         </div>
 
-        {
-          // only show the actions like editing and deleting if they own the post
-          isOwner && (
-            <div className="relative z-10">
-              <PostActionsMenu
-                post={post}
-                onEdit={onEdit}
-                onDelete={onDelete}
-              />
-            </div>
-          )
-        }
-      </CardHeader>
+        {/* Description (3 lines max) */}
+        <p className="mt-1 line-clamp-3 text-sm">
+          {post.description}{' '}
+          <Link
+            href={`/posts/${post.id}`}
+            className="relative z-10 font-medium text-primary"
+          >
+            see solution
+          </Link>
+        </p>
 
-      {/* BODY: description, cut off after 3 lines */}
-      <CardContent>
-        <p className="line-clamp-3">{post.description}</p>
-      </CardContent>
+        {/* Tags */}
+        <div className="mt-2 flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+          {postTags(post).map((t) => (
+            <span key={t}>#{t}</span>
+          ))}
+        </div>
 
-      {/* FOOTER: like button + comment count
-       * only fill like button if user liked it
-       */}
-      <CardFooter className="gap-1">
-        <div className="relative z-10">
+        {/* Comments + likes */}
+        <div className="mt-2 flex items-center justify-end gap-4">
+          <span className="flex items-center gap-1 text-xs text-muted-foreground">
+            <MessageCircle className="size-4" />{' '}
+            {formatCount(post.comments.length)}
+          </span>
           <LikeButton
-            liked={post.likedByMe}
             count={post.likeCount}
-            onToggle={() => onLike(post.id)}
-            disabled={!isLoggedIn}
+            liked={post.likedByMe}
+            disabled={!canInteract}
+            onClick={onLike}
           />
         </div>
-        <span className="flex items-center gap-1 px-3 text-sm text-muted-foreground">
-          <MessageSquare className="h-4 w-4" />
-          {post.comments.length}
-        </span>
-      </CardFooter>
-    </Card>
+      </div>
+    </article>
   );
 }
