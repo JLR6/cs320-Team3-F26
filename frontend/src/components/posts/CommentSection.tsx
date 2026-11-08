@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { formatTimeAgo } from '@/lib/utils';
+import { timeAgo } from '@/lib/utils';
 import type { PostComment } from '@/types/post';
 
 // props are like parameters
@@ -40,7 +40,7 @@ export function CommentSection({
           <div key={c.id} className="text-sm">
             <span className="font-medium">{c.author.username}</span>{' '}
             <span className="text-xs text-muted-foreground">
-              {formatTimeAgo(c.createdAt)}
+              {timeAgo(c.createdAt)}
             </span>
             <p>{c.content}</p>
           </div>
