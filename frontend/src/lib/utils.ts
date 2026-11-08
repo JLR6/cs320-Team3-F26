@@ -1,27 +1,5 @@
-'use client';
-
 export { cn } from 'cn';
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client'; // ASSUMPTION: adjust to your helper path
 import { ApiError } from './posts/posts-api';
-
-export type CurrentUser = { id: string; username: string };
-
-// return the logged in user or null when logged out
-export function useCurrentUser(): CurrentUser | null {
-  const [user, setUser] = useState<CurrentUser | null>(null);
-  useEffect(() => {
-    createClient()
-      .auth.getUser()
-      .then(({ data }) => {
-        const u = data.user;
-        setUser(
-          u ? { id: u.id, username: u.user_metadata?.username ?? 'me' } : null,
-        );
-      });
-  }, []);
-  return user;
-}
 
 // allow redirects only to paths on this site
 export function getSafeNext(next: string | null, fallback = '/feed') {
