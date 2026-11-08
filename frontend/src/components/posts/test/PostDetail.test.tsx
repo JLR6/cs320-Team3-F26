@@ -1,108 +1,111 @@
-// post detail behavior is tested here because it owns loading and navigation
+// PostDetail's like button, owner menu and comment box are already tested through
+// PostCard / CommentSection, so here we only test what is unique to this file.
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { PostDetail } from '../PostDetail';
-import * as api from '@/lib/posts/posts-api';
+import { PostDetail, PostDetailView } from '../PostDetail';
+import * as api from '@/lib/posts-api';
 import { FEED_PATH } from '@/lib/utils';
 import { makePost } from '@/lib/test-utils';
-import type { PostComment } from '@/types/post';
+import type { Post, PostComment } from '@/types/post';
 
 const push = vi.hoisted(() => vi.fn());
-const getUser = vi.hoisted(() => vi.fn());
 vi.mock('next/navigation', () => ({ useRouter: () => ({ push }) }));
-vi.mock('@/lib/posts/posts-api');
-vi.mock('@/lib/supabase/client', () => ({
-  createClient: () => ({ auth: { getUser } }),
-}));
+vi.mock('@/lib/posts-api');
 
 const user = userEvent.setup();
 
 beforeEach(() => {
   vi.resetAllMocks();
-  getUser.mockResolvedValue({
-    data: { user: { id: 'user1', user_metadata: { username: 'alice' } } },
-  });
 });
 
-function renderDetail(id = 'p1') {
-  return render(<PostDetail id={id} />);
+function renderDetail(post: Post) {
+  return render(
+    <PostDetail
+      post={post}
+      onLike={vi.fn()}
+      onComment={vi.fn()}
+      onEdit={vi.fn()}
+      onDelete={vi.fn()}
+    />,
+  );
 }
 
 describe('PostDetail', () => {
-  it('shows a safe solution link', async () => {
-    vi.mocked(api.getPostById).mockResolvedValue(
+  it('shows complexity and an https solution link', () => {
+    renderDetail(
       makePost({
         timeComplexity: 'O(n)',
         spaceComplexity: 'O(1)',
-        solution: 'https://leetcode.com/s/1',
+        solutionUrl: 'https://leetcode.com/s/1', // really simple solution link that should be allowed
       }),
     );
-    renderDetail();
 
-    // verify the solution link is shown for a safe url
-    expect(
-      await screen.findByRole('link', { name: /View solution on LeetCode/ }),
-    ).toHaveAttribute('href', 'https://leetcode.com/s/1');
+    expect(screen.getByText('O(n)')).toBeInTheDocument();
+    expect(screen.getByText('O(1)')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /View solution/ })).toHaveAttribute(
+      'href',
+      'https://leetcode.com/s/1',
+    );
   });
 
-  it('hides unsafe solution links', () => {
-    vi.mocked(api.getPostById).mockResolvedValue(
+  it('shows a dash for missing complexity and hides non-http links', () => {
+    renderDetail(
       makePost({
         timeComplexity: 'O(n)',
-        solution: 'evil://link.com/solution',
+        solutionUrl: 'evil://link.com/solution',
       }),
     );
-    renderDetail();
 
-    // verify unsafe urls are not rendered as links
-    expect(
-      screen.queryByRole('link', { name: /View solution on LeetCode/ }),
-    ).toBeNull();
+    expect(screen.getByText('—')).toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: /View solution/ })).toBeNull();
   });
 
-  it('does not render a complexity section', () => {
-    vi.mocked(api.getPostById).mockResolvedValue(makePost());
-    renderDetail();
-    // verify unsupported complexity fields are not rendered
+  it('hides the complexity section when neither value is set', () => {
+    renderDetail(makePost());
     expect(screen.queryByText('Time complexity')).toBeNull();
   });
 });
 
-describe('PostDetail', () => {
-  it('shows Loading..., then the post and a back button', async () => {
+function renderView() {
+  return render(<PostDetailView postId="p1" currentUserId="user1" />);
+}
+
+describe('PostDetailView', () => {
+  it('shows Loading..., then the post and a back link', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
-    renderDetail();
-    // wait for the detail request to finish before checking the page
+    renderView();
     expect(screen.getByText('Loading...')).toBeInTheDocument();
 
     expect(
       await screen.findByRole('heading', { name: /Two Sum/ }), // regular expression
     ).toBeInTheDocument();
-    // verify the page provides a back button
-    expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /Back to feed/ })).toHaveAttribute(
+      'href',
+      FEED_PATH,
+    );
   });
 
   it('shows an error when loading fails', async () => {
     vi.mocked(api.getPostById).mockRejectedValue(new Error('x'));
-    renderDetail();
+    renderView();
     expect(
-      await screen.findByText("Couldn't load this post"),
+      await screen.findByText("Couldn't load this post. Please try again."),
     ).toBeInTheDocument();
   });
 
   it('shows a message when the post does not exist', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(null);
-    renderDetail();
+    renderView();
     expect(
-      await screen.findByText("This post doesn't exist."),
+      await screen.findByText("This post doesn't exist or was deleted."),
     ).toBeInTheDocument();
   });
 
   it('like updates the post', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
     vi.mocked(api.toggleLike).mockResolvedValue(makePost({ likeCount: 4 }));
-    renderDetail();
+    renderView();
 
     await user.click(await screen.findByRole('button', { name: '3' }));
 
@@ -119,13 +122,13 @@ describe('PostDetail', () => {
       content: 'Nice!',
       createdAt: new Date().toISOString(),
     } as PostComment);
-    renderDetail();
+    renderView();
 
     await user.type(
-      await screen.findByPlaceholderText('Type comment here...'),
+      await screen.findByPlaceholderText('Add a comment...'),
       'Nice!',
     );
-    await user.click(screen.getByRole('button', { name: 'Comment' }));
+    await user.click(screen.getByRole('button', { name: 'Post' }));
 
     expect(await screen.findByText('Nice!')).toBeInTheDocument();
     expect(api.addComment).toHaveBeenCalledWith('p1', 'Nice!');
@@ -134,13 +137,15 @@ describe('PostDetail', () => {
   it('edit: saving from the dialog calls updatePost', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
     vi.mocked(api.updatePost).mockResolvedValue(makePost());
-    renderDetail();
+    renderView();
 
     await user.click(
       await screen.findByRole('button', { name: 'Post options' }),
     );
     await user.click(await screen.findByRole('menuitem', { name: /edit/i }));
-    await user.click(await screen.findByRole('button', { name: 'Save' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Save changes' }),
+    );
 
     expect(api.updatePost).toHaveBeenCalledWith('p1', expect.anything());
   });
@@ -148,7 +153,7 @@ describe('PostDetail', () => {
   it('delete: confirming deletes the post and returns to the feed', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
     vi.mocked(api.deletePost).mockResolvedValue(undefined);
-    renderDetail();
+    renderView();
 
     await user.click(
       await screen.findByRole('button', { name: 'Post options' }),

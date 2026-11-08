@@ -4,8 +4,9 @@ import { useEffect, useState } from 'react';
 import { PostCard } from './PostCard';
 import { PostFormDialog } from './PostFormDialog';
 import { DeletePostDialog } from './DeletePostDialog';
-import * as api from '@/lib/posts/posts-api';
-import type { FeedType, Post, PostInput } from '@/types/post';
+import * as api from '@/lib/posts-api';
+import type { Post, PostInput } from '@/types/post';
+import type { FeedType } from '@/types/feed';
 
 // What to show when a feed has no posts.
 const EMPTY_MESSAGE: Record<FeedType, string> = {
@@ -51,9 +52,9 @@ export function PostList({
     // replace current posts with nextPosts
     api
       .getPosts(feed)
-      .then((page) => {
+      .then((nextPosts) => {
         if (cancelled) return;
-        setPosts(page.posts);
+        setPosts(nextPosts);
         setLoaded({ key: requestKey, failed: false });
       })
       .catch(() => {
@@ -104,11 +105,10 @@ export function PostList({
           <PostCard
             key={post.id}
             post={post}
-            isOwner={post.author.id === currentUserId}
-            canInteract={Boolean(currentUserId)}
-            onLike={() => handleLike(post.id)}
-            onEdit={() => setEditing(post)}
-            onDelete={() => setDeleting(post)}
+            currentUserId={currentUserId}
+            onLike={handleLike}
+            onEdit={setEditing}
+            onDelete={setDeleting}
           />
         ))}
 
@@ -125,11 +125,9 @@ export function PostList({
         onSubmit={handleEdit}
       />
       <DeletePostDialog
-        open={Boolean(deleting)}
-        onOpenChange={(open) => !open && setDeleting(null)}
-        onConfirm={() => {
-          if (deleting) void handleDelete(deleting);
-        }}
+        post={deleting}
+        onCancel={() => setDeleting(null)}
+        onConfirm={handleDelete}
       />
     </div>
   );
