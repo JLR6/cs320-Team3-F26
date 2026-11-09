@@ -8,7 +8,9 @@ describe('UpdatePassword', () => {
     render(<UpdatePassword />);
 
     // verify the page explains what the form is for
-    expect(screen.getByRole('heading', { name: 'Reset Password' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Reset Password' }),
+    ).toBeInTheDocument();
     expect(
       screen.getByText('Enter your new password below.'),
     ).toBeInTheDocument();
@@ -32,7 +34,10 @@ describe('UpdatePassword', () => {
     render(<UpdatePassword />);
 
     // enter two different passwords to trigger the client-side check
-    await user.type(screen.getByPlaceholderText('New Password'), 'first-password');
+    await user.type(
+      screen.getByPlaceholderText('New Password'),
+      'first-password',
+    );
     await user.type(
       screen.getByPlaceholderText('Confirm New Password'),
       'second-password',
