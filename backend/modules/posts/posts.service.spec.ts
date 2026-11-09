@@ -63,7 +63,7 @@ describe('PostsService', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const [input, options] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
-    expect(url.pathname).toBe('/rest/v1/posts');
+    expect(url.pathname).toBe('/rest/v1/post_details');
     expect(url.searchParams.get('select')).toBe('*');
     expect(url.searchParams.get('limit')).toBe('51');
     expect(url.searchParams.get('order')).toBe('created_at.desc.nullslast,post_id.desc');
@@ -100,7 +100,7 @@ describe('PostsService', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const [input, options] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
-    expect(url.pathname).toBe('/rest/v1/posts');
+    expect(url.pathname).toBe('/rest/v1/post_details');
     expect(url.searchParams.get('select')).toBe(
       '*,problems!inner(tags(tag_name),matching_tags:tags!inner())',
     );
@@ -143,7 +143,7 @@ describe('PostsService', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const [input, options] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
-    expect(url.pathname).toBe('/rest/v1/following_posts');
+    expect(url.pathname).toBe('/rest/v1/following_post_details');
     expect(url.searchParams.get('problems.matching_tags.tag_name')).toBe('in.("Array","Hash Table")');
     expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
   });
@@ -344,6 +344,30 @@ describe('PostsService', () => {
     problem_number: 1,
     post_description: 'A coding problem',
     created_at: '2026-10-14T00:00:00Z',
+    id: '11111111-1111-4111-8111-111111111111',
+    author: {
+      id: '22222222-2222-4222-8222-222222222222', username: 'Author', profilePicture: null,
+    },
+    problemNumber: 1,
+    problemName: 'Two Sum',
+    problemLink: 'https://leetcode.com/problems/two-sum/',
+    difficulty: 'Easy',
+    description: 'A coding problem',
+    tags: ['Array', 'Hash Table'],
+    timeComplexity: 'O(n)',
+    spaceComplexity: 'O(1)',
+    solutionUrl: null,
+    likeCount: 1,
+    likedByMe: true,
+    comments: [{
+      id: '33333333-3333-4333-8333-333333333333',
+      postId: '11111111-1111-4111-8111-111111111111',
+      author: { id: '44444444-4444-4444-8444-444444444444', username: 'Reader', profilePicture: null },
+      text: 'A comment', likeCount: 0,
+      createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z',
+    }],
+    createdAt: '2026-10-14T00:00:00Z',
+    updatedAt: '2026-10-14T00:00:00Z',
   };
 
   it('fetches one post by its ID', async () => {
@@ -355,16 +379,19 @@ describe('PostsService', () => {
 
   it('creates a post without accepting an author from the caller', async () => {
     mockUser();
-    fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }));
+    fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }))
+      .mockResolvedValueOnce(Response.json([post]));
     await expect(service.create('user-token', { problem_number: 1, post_description: post.post_description })).resolves.toEqual(post);
     const [, options] = fetchMock.mock.calls[1];
     expect(options?.method).toBe('POST');
     expect(JSON.parse(String(options?.body))).toEqual({ problem_number: 1, post_description: post.post_description, user_id: post.user_id });
     expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
+    expect(new URL(String(fetchMock.mock.calls[2][0])).pathname).toBe('/rest/v1/post_details');
   });
 
   it('updates only the requested post content', async () => {
-    fetchMock.mockResolvedValueOnce(Response.json({ ...post, post_description: 'Updated' }));
+    fetchMock.mockResolvedValueOnce(Response.json({ ...post, post_description: 'Updated' }))
+      .mockResolvedValueOnce(Response.json([{ ...post, post_description: 'Updated' }]));
     await expect(service.update('user-token', post.post_id, { post_description: 'Updated' }))
       .resolves.toEqual({ ...post, post_description: 'Updated' });
     const [input, options] = fetchMock.mock.calls[0];
@@ -373,6 +400,7 @@ describe('PostsService', () => {
     expect(JSON.parse(String(options?.body))).toEqual({
       post_description: 'Updated', updated_at: expect.any(String),
     });
+    expect(new URL(String(fetchMock.mock.calls[1][0])).pathname).toBe('/rest/v1/post_details');
   });
 
   it('deletes only the requested post', async () => {
@@ -437,7 +465,8 @@ describe('PostsService', () => {
 
     it('uses existing problems without fetching from LeetCode', async () => {
       mockUser();
-      fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }));
+      fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }))
+      .mockResolvedValueOnce(Response.json([post]));
       await expect(service.create('user-token', {
         problem_number: 1,
         problem_slug: 'two-sum',
@@ -446,7 +475,7 @@ describe('PostsService', () => {
       expect(problemsMock.findOne).toHaveBeenCalledWith(1);
       expect(leetcodeMock.fetchProblemBySlug).not.toHaveBeenCalled();
       expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
     });
 
     it('imports a missing problem before creating a post', async () => {
@@ -458,7 +487,8 @@ describe('PostsService', () => {
       problemsMock.findOrCreate.mockResolvedValueOnce(twoSum);
 
       mockUser();
-      fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }));
+      fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }))
+      .mockResolvedValueOnce(Response.json([post]));
       await expect(service.create('user-token', {
         problem_number: 1,
         problem_slug: 'two-sum',
@@ -469,7 +499,7 @@ describe('PostsService', () => {
       expect(problemsMock.findOrCreate).toHaveBeenCalledWith(twoSum);
 
       // make sure we don't save problem_slug in the posts table
-      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock).toHaveBeenCalledTimes(3);
       const [input, options] = fetchMock.mock.calls[1];
       expect(new URL(String(input)).pathname).toBe('/rest/v1/posts');
       expect(options?.method).toBe('POST');

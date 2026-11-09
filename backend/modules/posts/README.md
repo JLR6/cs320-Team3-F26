@@ -13,9 +13,21 @@ requirement for a Bearer token.
 | PATCH | `/posts/:id` | Updated post (200) |
 | DELETE | `/posts/:id` | No response body (204) |
 
-The route `:id` identifies the `post_id` column. Post records match the migrations:
-`post_id`, `user_id`, `problem_number`, `like_count`, `post_description`,
-`user_solution`, `user_time_complexity`, `created_at`, and `updated_at`.
+The route `:id` identifies the `post_id` column. Both feeds, single-post lookups,
+and POST/PATCH responses include the UI fields `id`, `author`, `problemNumber`,
+`problemName`, `difficulty`, `problemLink`, `description`, `tags`, `timeComplexity`,
+`spaceComplexity`, `solutionUrl`, `likeCount`, `likedByMe`, `comments`, `createdAt`,
+and `updatedAt`. Existing database-named post fields are also included.
+
+`author` contains `id`, `username`, and `profilePicture`. Missing profile details
+are null. `comments` contains objects with `id`, `postId`, `author`, `text`,
+`likeCount`, `createdAt`, and `updatedAt`, oldest first. Empty comments and tags
+are empty arrays. `likedByMe` reflects the caller's token and `likeCount` defaults
+to zero when the stored count is null. Optional text and timestamps can be null.
+
+Apply the post-details view migration before deploying this code. Reads use
+`post_details` and `following_post_details` under the caller's database permissions.
+POST and PATCH save the row and then fetch its enriched response.
 
 ## Filtering posts by problem tags
 
@@ -39,8 +51,8 @@ is required for both filtered and unfiltered requests.
 
 Both versions return a page object containing up to 50 posts ordered by
 `created_at` descending (nulls last), then `post_id` descending. No matches return
-`{ "posts": [], "nextCursor": null, "hasMore": false }`. Filtered posts include
-all tags on the related problem, including tags outside the filter.
+`{ "posts": [], "nextCursor": null, "hasMore": false }`. All posts include their complete `tags` array. Filtered posts also include
+the legacy `problems.problem_tags` array.
 
 ```json
 {
@@ -53,8 +65,7 @@ all tags on the related problem, including tags outside the filter.
 }
 ```
 
-This example omits other post fields for brevity. Unfiltered results retain the
-original post-only shape without the nested `problems` object.
+This example omits the additional UI fields for brevity.
 
 ## Cursor pagination for infinite scrolling
 
@@ -178,9 +189,9 @@ permissions and checks follow relationships before applying pagination.
 ## Creating and updating posts
 
 POST requires an integer `problem_number` referencing an existing `public.problems`
-row. Creating or fetching problem metadata is not implemented by this API; populate
-that table through a trusted backend/admin process first. Optional text fields are
-`post_description`, `user_solution`, and `user_time_complexity`; each accepts a
+row. Include `problem_slug` when creating a post to import a missing problem from
+LeetCode. Optional text fields are `post_description`, `user_solution`,
+`user_time_complexity`, `user_space_complexity`, and `solution_url`. Each accepts a
 string or null. Formatting, including solution whitespace, is preserved.
 
 Example POST body:
@@ -190,11 +201,13 @@ Example POST body:
   "problem_number": 1,
   "post_description": "Solved using a hash map",
   "user_solution": "return answer;",
-  "user_time_complexity": "O(n)"
+  "user_time_complexity": "O(n)",
+  "user_space_complexity": "O(1)",
+  "solution_url": "https://example.com/solution"
 }
 ```
 
-PATCH accepts any non-empty subset of those four fields, including null to clear
+PATCH accepts any non-empty subset of the post fields, including null to clear
 optional text. The backend refreshes `updated_at` on PATCH because the migrations
 only give it a default value. POST verifies the token with Supabase Auth and sets
 `user_id` to that user's ID; the column has no database default. Clients cannot set
@@ -240,3 +253,5 @@ psql "$LOCAL_SUPABASE_DB_URL" -v ON_ERROR_STOP=1 -f backend/supabase/tests/posts
 ```
 
 The SQL test creates temporary users and a problem fixture, then rolls back.
+
+Verify the UI response fields and caller-specific like state with `backend/supabase/tests/post-details.sql` against disposable local Supabase.

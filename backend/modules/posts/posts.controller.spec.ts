@@ -203,17 +203,28 @@ describe('Posts HTTP endpoints', () => {
     expect(service.create).toHaveBeenCalledWith('user-token', { problem_number: 1 });
   });
 
+  it('POST accepts space complexity and an optional solution URL', async () => {
+    const body = {
+      problem_number: 1, user_space_complexity: 'O(1)', solution_url: 'https://example.test/solution',
+    };
+    service.create.mockResolvedValue(post);
+    await request(app.getHttpServer()).post('/posts')
+      .set('Authorization', 'Bearer user-token').send(body).expect(201, post);
+    expect(service.create).toHaveBeenCalledWith('user-token', body);
+  });
+
   it('PATCH can clear nullable fields and preserves solution formatting', async () => {
     service.update.mockResolvedValue(post);
     const body = {
       post_description: null, user_solution: '  return answer;\n', user_time_complexity: 'O(n)',
+      user_space_complexity: null, solution_url: null,
     };
     await request(app.getHttpServer()).patch(`/posts/${id}`)
       .set('Authorization', 'Bearer user-token').send(body).expect(200);
     expect(service.update).toHaveBeenCalledWith('user-token', id, body);
   });
 
-  it.each(['user_solution', 'user_time_complexity'])('rejects non-text %s', async field => {
+  it.each(['user_solution', 'user_time_complexity', 'user_space_complexity', 'solution_url'])('rejects non-text %s', async field => {
     await request(app.getHttpServer()).patch(`/posts/${id}`)
       .set('Authorization', 'Bearer user-token').send({ [field]: 42 }).expect(400);
   });
