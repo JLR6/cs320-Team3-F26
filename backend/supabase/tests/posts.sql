@@ -83,9 +83,38 @@ begin
 end $$;
 
 reset role;
+insert into public.posts (user_id, problem_number)
+values ('bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', -2147483648);
+insert into public.followers (follower_id, following_id)
+values
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
+  ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb');
+
+set local role authenticated;
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', true);
+do $$
+begin
+  if (select array_agg(user_id) from public.following_posts)
+      is distinct from array['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'::uuid] then
+    raise exception 'Following feed should contain the followed author post exactly once';
+  end if;
+end $$;
+
+select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', true);
+do $$
+begin
+  if exists (select 1 from public.following_posts) then
+    raise exception 'Following feed should be empty for a user who follows nobody';
+  end if;
+end $$;
+
+reset role;
 set local role anon;
 do $$
 begin
+  if has_table_privilege('anon', 'public.following_posts', 'select') then
+    raise exception 'Anonymous users can read the following feed';
+  end if;
   if not exists (select 1 from public.posts where problem_number = -2147483648) then
     raise exception 'Public post read policy failed';
   end if;

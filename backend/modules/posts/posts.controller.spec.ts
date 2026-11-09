@@ -15,7 +15,7 @@ describe('Posts HTTP endpoints', () => {
   const post = { post_id: id, problem_number: 1, post_description: 'A post' };
   const emptyPage = { posts: [], nextCursor: null, hasMore: false };
   const service = {
-    findAll: vi.fn(), findOne: vi.fn(), create: vi.fn(),
+    findAll: vi.fn(), findFollowing: vi.fn(), findOne: vi.fn(), create: vi.fn(),
     update: vi.fn(), remove: vi.fn(),
   };
 
@@ -142,6 +142,30 @@ describe('Posts HTTP endpoints', () => {
     expect(service.findAll).not.toHaveBeenCalled();
   });
 
+  it('GET /posts/following passes the selected tags and cursor to the followed feed', async () => {
+    const cursor = { post_id: id, created_at: '2026-10-24T12:30:45.123456' };
+    const query = new URLSearchParams({ cursor: encodePostCursor(cursor), limit: '20' });
+    query.append('tag', ' Array ');
+    query.append('tag', 'Hash Table');
+    query.append('tag', 'Array');
+    service.findFollowing.mockResolvedValue(emptyPage);
+
+    await request(app.getHttpServer()).get(`/posts/following?${query}`)
+      .set('Authorization', 'Bearer user-token').expect(200, emptyPage);
+    expect(service.findFollowing).toHaveBeenCalledWith('user-token', ['Array', 'Hash Table'], {
+      cursor, limit: 20,
+    });
+    expect(service.findAll).not.toHaveBeenCalled();
+  });
+
+  it.each(['tag=Array&tag=', 'limit=0', 'cursor=invalid'])(
+    'GET /posts/following rejects invalid filters: %s', async query => {
+      await request(app.getHttpServer()).get(`/posts/following?${query}`)
+        .set('Authorization', 'Bearer user-token').expect(400);
+      expect(service.findFollowing).not.toHaveBeenCalled();
+    },
+  );
+
   it('GET /posts/:id returns one post', async () => {
     service.findOne.mockResolvedValue(post);
     await request(app.getHttpServer()).get(`/posts/${id}`)
@@ -179,17 +203,28 @@ describe('Posts HTTP endpoints', () => {
     expect(service.create).toHaveBeenCalledWith('user-token', { problem_number: 1 });
   });
 
+  it('POST accepts space complexity and an optional solution URL', async () => {
+    const body = {
+      problem_number: 1, user_space_complexity: 'O(1)', solution_url: 'https://example.test/solution',
+    };
+    service.create.mockResolvedValue(post);
+    await request(app.getHttpServer()).post('/posts')
+      .set('Authorization', 'Bearer user-token').send(body).expect(201, post);
+    expect(service.create).toHaveBeenCalledWith('user-token', body);
+  });
+
   it('PATCH can clear nullable fields and preserves solution formatting', async () => {
     service.update.mockResolvedValue(post);
     const body = {
       post_description: null, user_solution: '  return answer;\n', user_time_complexity: 'O(n)',
+      user_space_complexity: null, solution_url: null,
     };
     await request(app.getHttpServer()).patch(`/posts/${id}`)
       .set('Authorization', 'Bearer user-token').send(body).expect(200);
     expect(service.update).toHaveBeenCalledWith('user-token', id, body);
   });
 
-  it.each(['user_solution', 'user_time_complexity'])('rejects non-text %s', async field => {
+  it.each(['user_solution', 'user_time_complexity', 'user_space_complexity', 'solution_url'])('rejects non-text %s', async field => {
     await request(app.getHttpServer()).patch(`/posts/${id}`)
       .set('Authorization', 'Bearer user-token').send({ [field]: 42 }).expect(400);
   });
@@ -203,7 +238,7 @@ describe('Posts HTTP endpoints', () => {
   });
 
   const routes = [
-    ['get', '/posts'], ['get', `/posts/${id}`], ['post', '/posts'],
+    ['get', '/posts'], ['get', '/posts/following'], ['get', `/posts/${id}`], ['post', '/posts'],
     ['patch', `/posts/${id}`], ['delete', `/posts/${id}`],
   ] as const;
 
