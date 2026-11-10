@@ -13,18 +13,23 @@ export function PasswordInput({
 
   // toggle visibility without changing the field value
   return (
-    <div className="relative">
+    <div
+      className={cn(
+        'flex group rounded-sm border border-input focus-within:border-foreground mt-5',
+        className,
+      )}
+    >
       <Input
         {...props}
         type={visible ? 'text' : 'password'}
-        className={cn('pr-10', className)}
+        className={cn('pr-10 rounded-r-none border-0')}
       />
       <button
         type="button"
         onClick={() => setVisible((v) => !v)}
         aria-label={visible ? 'Hide password' : 'Show password'}
         aria-pressed={visible}
-        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-md text-muted-foreground hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="h-9 inset-y-0 right-0 flex w-10 items-center justify-center rounded-r-sm text-foreground opacity-0 group-hover:opacity-100 aria-pressed:opacity-100"
       >
         {visible ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
       </button>
