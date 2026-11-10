@@ -45,10 +45,10 @@ export function PostCard({
               className="font-semibold after:absolute after:inset-0"
             >
               {problemTitle(post)}
-              {post.difficulty && (
-                <span className={DIFFICULTY_COLOR[post.difficulty]}>
+              {post.problem.difficulty && (
+                <span className={DIFFICULTY_COLOR[post.problem.difficulty]}>
                   {' '}
-                  ({post.difficulty})
+                  ({post.problem.difficulty})
                 </span>
               )}
             </Link>

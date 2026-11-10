@@ -1,32 +1,29 @@
-// Utility functions for testing.
-
 import { screen } from '@testing-library/react';
 import type { UserEvent } from '@testing-library/user-event';
 import type { Post } from '@/types/post';
 
-// just an example post but we can change individual details if needed with overrides
 export function makePost(overrides: Partial<Post> = {}): Post {
   return {
     id: 'p1',
     author: { id: 'user1', username: 'alice' },
-    problemNumber: 1,
-    problemName: 'Two Sum',
-    difficulty: 'Easy',
+    problem: {
+      number: 1,
+      title: 'Two Sum',
+      difficulty: 'Easy',
+      tags: ['HashTable'],
+    },
     description: 'Used a hash map.',
-    tags: ['HashTable'],
     timeComplexity: '',
-    spaceComplexity: '',
-    solutionUrl: '',
+    solution: '',
     createdAt: new Date().toISOString(),
     updatedAt: undefined,
     likedByMe: false,
     likeCount: 3,
     comments: [],
     ...overrides,
-  } as Post;
+  };
 }
 
-// Fills form fields for making posts.
 export async function fillPostForm(user: UserEvent, name = 'Two Sum') {
   const textboxes = screen.getAllByRole('textbox');
   const problemNumber = textboxes[0];

@@ -38,19 +38,18 @@ export function formatCount(n: number): string {
 
 // show the problem number with its name when available
 export function problemTitle(p: Post): string {
-  return p.problemName
-    ? `${p.problemNumber}. ${p.problemName}`
-    : `Problem ${p.problemNumber}`;
+  return p.problem.title
+    ? `${p.problem.number}. ${p.problem.title}`
+    : `Problem ${p.problem.number}`;
 }
 
 // collect the post details shown in the tag line
 export function postTags(p: Post): string[] {
   return [
     problemTitle(p),
-    ...(p.difficulty ? [`Difficulty: ${p.difficulty}`] : []),
-    ...p.tags,
+    ...(p.problem.difficulty ? [`Difficulty: ${p.problem.difficulty}`] : []),
+    ...p.problem.tags,
     ...(p.timeComplexity ? [`Time Complexity: ${p.timeComplexity}`] : []),
-    ...(p.spaceComplexity ? [`Space Complexity: ${p.spaceComplexity}`] : []),
   ];
 }
 

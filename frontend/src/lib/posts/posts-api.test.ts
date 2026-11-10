@@ -2,13 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PostInput } from '@/types/post';
 import { MOCK_CURRENT_USER } from '../mock-user';
 
-// mock the database client so it does not connect to anything real
-// for testing anything that uses the database, using this at the top of the test file is recommended
-// vi.hoisted lets each test change who is logged in
+// mock the database client so tests never connect to anything real
+// vi.hoisted lets each test change the logged in user
 const auth = vi.hoisted(() => ({ getSession: vi.fn(), getUser: vi.fn() }));
 vi.mock('@/lib/supabase/client', () => ({ createClient: () => ({ auth }) }));
 
-// fake fetch so no real request is sent to the backend
+// fake fetch so tests never send a real request
 const fetchMock = vi.fn();
 
 let api: typeof import('./posts-api');
@@ -17,7 +16,7 @@ beforeEach(async () => {
   fetchMock.mockReset();
   vi.stubGlobal('fetch', fetchMock);
 
-  // by default someone is logged in
+  // start each test with a logged in user
   auth.getSession.mockResolvedValue({
     data: { session: { access_token: 'mock' } },
   });
@@ -30,7 +29,7 @@ beforeEach(async () => {
     },
   });
 
-  // load a fresh copy of posts-api so the local likes and comments start empty
+  // load a fresh api so local likes and comments start empty
   vi.resetModules();
   api = await import('./posts-api');
 });
@@ -38,8 +37,6 @@ beforeEach(async () => {
 afterEach(() => {
   vi.unstubAllGlobals();
 });
-
-// only fetch and the login are fake, so these tests run the real code in posts-api.ts
 
 // queue up one fake answer from the backend
 function reply(status: number, body?: unknown) {
@@ -51,7 +48,6 @@ function reply(status: number, body?: unknown) {
 }
 
 // keep the fixture close to the shape returned by the posts endpoint
-// a post row shaped like the backend sends it
 const row = (changes = {}) => ({
   post_id: 'p1',
   user_id: 'user1',
@@ -60,21 +56,26 @@ const row = (changes = {}) => ({
   post_description: 'used a hash map',
   user_solution: 'https://leetcode.com/problems/two-sum',
   user_time_complexity: 'O(n)',
-  created_at: '2026-01-01T00:00:00Z', // just a basic iso string that
-  updated_at: null, // just created, so it can't be updated just yet
-  problems: { problem_tags: ['Array'] },
+  created_at: '2026-01-01T00:00:00Z',
+  updated_at: null,
+  problems: {
+    problem_tags: ['Array'],
+    problem_title: 'Two Sum',
+    problem_difficulty: 'Easy',
+    problem_description: 'add two numbers',
+    problem_link: 'https://leetcode.com/problems/two-sum',
+    problem_official_solution: 'https://leetcode.com/official/two-sum',
+  },
   ...changes,
 });
 
-// get the most recent request so each test can inspect its details
 // a filled in form, the way the post form hands it over
 const formInput = {
   problemNumber: 1,
   description: 'used a hash map',
-  tags: [],
   timeComplexity: 'O(n)',
   solutionUrl: 'https://leetcode.com/problems/two-sum',
-} as unknown as PostInput;
+} satisfies PostInput;
 
 describe('authentication', () => {
   it('sends the logged in user token with every request', async () => {
@@ -193,10 +194,17 @@ describe('turning backend rows into posts', () => {
     // verify that all the fields are mapped correctly
     expect(post?.id).toBe('p1');
     expect(post?.author.id).toBe('user1');
-    expect(post?.problemNumber).toBe(1);
+    expect(post?.problem.number).toBe(1);
+    expect(post?.problem.title).toBe('Two Sum');
+    expect(post?.problem.difficulty).toBe('Easy');
+    expect(post?.problem.description).toBe('add two numbers');
+    expect(post?.problem.link).toBe('https://leetcode.com/problems/two-sum');
+    expect(post?.problem.officialSolution).toBe(
+      'https://leetcode.com/official/two-sum',
+    );
     expect(post?.description).toBe('used a hash map');
     expect(post?.timeComplexity).toBe('O(n)');
-    expect(post?.tags).toEqual(['Array']);
+    expect(post?.problem.tags).toEqual(['Array']);
     expect(post?.likeCount).toBe(2);
     expect(post?.createdAt).toBe('2026-01-01T00:00:00Z');
     expect(post?.updatedAt).toBe('2026-01-02T00:00:00Z');
@@ -221,7 +229,15 @@ describe('turning backend rows into posts', () => {
     expect(post?.likeCount).toBe(0);
     expect(post?.description).toBe('');
     expect(post?.timeComplexity).toBe('');
-    expect(post?.tags).toEqual([]);
+    expect(post?.problem).toEqual({
+      number: 1,
+      title: 'Problem 1',
+      description: undefined,
+      difficulty: undefined,
+      link: undefined,
+      officialSolution: undefined,
+      tags: [],
+    });
     expect(post?.createdAt).toBe('');
     expect(post?.updatedAt).toBeUndefined();
   });

@@ -2,6 +2,7 @@
 // Likes, comments and following have no backend routes yet, so they stay local mocks.
 import type {
   Difficulty,
+  Problem,
   Post,
   PostComment,
   PostInput,
@@ -26,11 +27,20 @@ type PostRow = {
   user_space_complexity?: string | null; // TODO: not sent yet
   created_at: string | null;
   updated_at: string | null;
-  // problem_tags only on tag-filtered requests. name/difficulty: TODO not sent yet
+  problemName?: string | null;
+  difficulty?: Difficulty | null;
+  problemLink?: string | null;
+  problemDescription?: string | null;
+  problemOfficialSolution?: string | null;
+  tags?: string[] | null;
   problems?: {
     problem_tags: string[];
-    problem_name?: string;
-    difficulty?: Difficulty;
+    problem_title?: string;
+    problem_difficulty?: Difficulty;
+    problem_link?: string;
+    problem_description?: string;
+    problem_official_solution?: string;
+    tags?: string[];
   } | null;
 };
 
@@ -81,18 +91,34 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 // If a field name below doesn't match types/post.ts, fix it here only.
 function toPost(row: PostRow): Post {
   const liked = likedIds.has(row.post_id);
+  const problem: Problem = {
+    number: row.problem_number,
+    title:
+      row.problemName ??
+      row.problems?.problem_title ??
+      `Problem ${row.problem_number}`,
+    description:
+      row.problemDescription ?? row.problems?.problem_description ?? undefined,
+    difficulty: row.difficulty ?? row.problems?.problem_difficulty ?? undefined,
+    link: row.problemLink ?? row.problems?.problem_link ?? undefined,
+    officialSolution:
+      row.problemOfficialSolution ??
+      row.problems?.problem_official_solution ??
+      undefined,
+    tags: row.tags ?? row.problems?.problem_tags ?? row.problems?.tags ?? [],
+  };
   return {
     id: row.post_id,
     // TODO: backend only sends user_id. Ask for the username to be included.
     author: { id: row.user_id, username: 'user' },
-    problemNumber: row.problem_number,
+    problem,
+    problemNumber: problem.number,
+    problemName: problem.title,
+    difficulty: problem.difficulty,
+    tags: problem.tags,
     description: row.post_description ?? '',
     solution: row.user_solution ?? '',
     timeComplexity: row.user_time_complexity ?? '',
-    spaceComplexity: row.user_space_complexity ?? undefined,
-    problemName: row.problems?.problem_name,
-    difficulty: row.problems?.difficulty,
-    tags: row.problems?.problem_tags ?? [], // TODO: backend should always send tags
     likeCount: (row.like_count ?? 0) + (liked ? 1 : 0), // local like added on top
     likedByMe: liked,
     comments: localComments.get(row.post_id) ?? [],
