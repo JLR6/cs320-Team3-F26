@@ -1,14 +1,6 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 import { ForgotPasswordForm } from '@/components/auth/ForgotPasswordForm';
+import { AppCard, AppCardHeader, AppCardContent } from '@/components/app-card';
 
 export const metadata: Metadata = {
   title: 'Reset password | LeetMeet',
@@ -17,35 +9,23 @@ export const metadata: Metadata = {
 export default function ForgotPasswordPage() {
   // keep reset handling inside the shared form
   return (
-    <main className="flex min-h-screen items-center justify-center bg-background px-4 py-10">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center text-2xl font-bold tracking-tight">
-          Leet<span className="text-primary">Meet</span>
-        </div>
+    <div className="flex min-h-screen w-full items-center justify-center">
+      <AppCard className="w-109">
+        <AppCardHeader>
+          <div className="text-[11px] bg-[#027BFF] h-4 w-4 rounded-full text-center align-middle text-primary-foreground font-bold mr-2 ml-1 select-none">
+            i
+          </div>
+          Password Reset
+        </AppCardHeader>
 
-        <Card>
-          <CardHeader className="text-center">
-            <CardTitle className="text-xl">Reset your password</CardTitle>
-            <CardDescription>
-              Enter your email and we'll send you a link to reset it.
-            </CardDescription>
-          </CardHeader>
-
-          <CardContent className="space-y-3">
-            <ForgotPasswordForm />
-          </CardContent>
-
-          <CardFooter className="justify-center text-sm text-muted-foreground">
-            Remembered it?{' '}
-            <Link
-              href="/login"
-              className="ml-1 font-medium text-primary hover:underline"
-            >
-              Back to log in
-            </Link>
-          </CardFooter>
-        </Card>
-      </div>
-    </main>
+        <AppCardContent>
+          <p className="mt-7">
+            Forgot your password? Enter your email, and we'll send you a link to
+            reset it.
+          </p>
+          <ForgotPasswordForm />
+        </AppCardContent>
+      </AppCard>
+    </div>
   );
 }

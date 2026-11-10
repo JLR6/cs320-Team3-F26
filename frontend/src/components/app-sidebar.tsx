@@ -144,7 +144,6 @@ function NavMain() {
 
         return (
           <SidebarMenuItem key={item.title}>
-            {/* <Link href={item.url}> */}
             <SidebarMenuButton
               isActive={item.url === current}
               render={<Link href={item.url} />}
@@ -152,7 +151,6 @@ function NavMain() {
               <LucideIcon />
               {item.title}
             </SidebarMenuButton>
-            {/* </Link> */}
           </SidebarMenuItem>
         );
       })}
