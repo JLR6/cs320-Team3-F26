@@ -95,32 +95,30 @@ describe('formatCount', () => {
 describe('post helpers', () => {
   it('formats titles and post details', () => {
     const post = makePost({
-      problemName: 'Two Sum',
-      difficulty: 'Easy',
-      tags: ['Array'],
+      problem: {
+        number: 1,
+        title: 'Two Sum',
+        difficulty: 'Easy',
+        tags: ['Array'],
+      },
       timeComplexity: 'O(n)',
-      spaceComplexity: 'O(1)',
     });
 
     // verify named problems include their number and name
     expect(problemTitle(post)).toBe('1. Two Sum');
-    // verify all available post details are listed
+    // verify all available problem details are listed
     expect(postTags(post)).toEqual([
       '1. Two Sum',
       'Difficulty: Easy',
       'Array',
       'Time Complexity: O(n)',
-      'Space Complexity: O(1)',
     ]);
   });
 
   it('uses a generic title and skips missing details', () => {
     const post = makePost({
-      problemName: undefined,
-      difficulty: undefined,
-      tags: [],
+      problem: { number: 1, title: '', tags: [] },
       timeComplexity: '',
-      spaceComplexity: '',
     });
 
     // verify unnamed problems use the generic title

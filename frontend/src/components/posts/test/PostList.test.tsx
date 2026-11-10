@@ -97,7 +97,9 @@ describe('PostList', () => {
       hasMore: false,
     });
     vi.mocked(api.createPost).mockResolvedValue(
-      makePost({ problemName: 'Add Two Numbers' }),
+      makePost({
+        problem: { number: 1, title: 'Add Two Numbers', tags: ['HashTable'] },
+      }),
     );
 
     renderList({
@@ -131,7 +133,9 @@ describe('PostList', () => {
       hasMore: false,
     });
     vi.mocked(api.updatePost).mockResolvedValue(
-      makePost({ problemName: 'Three Sum' }),
+      makePost({
+        problem: { number: 1, title: 'Three Sum', tags: ['HashTable'] },
+      }),
     );
 
     renderList();

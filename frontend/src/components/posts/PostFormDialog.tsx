@@ -32,14 +32,14 @@ const empty: PostFormValues = {
 
 // Post -> form values (for editing)
 const toForm = (p: Post): PostFormValues => ({
-  problemNumber: String(p.problemNumber),
-  problemName: p.problemName ?? 'unknown',
-  difficulty: p.difficulty ?? 'Easy',
+  problemNumber: String(p.problem.number),
+  problemName: p.problem.title,
+  difficulty: p.problem.difficulty ?? 'Easy',
   solutionUrl: p.solution,
   description: p.description,
-  tags: p.tags.map((tag) => `#${tag}`).join(' '),
+  tags: p.problem.tags.map((tag) => `#${tag}`).join(' '),
   timeComplexity: p.timeComplexity,
-  spaceComplexity: p.spaceComplexity ?? 'unknown',
+  spaceComplexity: 'unknown',
 });
 
 function Field({

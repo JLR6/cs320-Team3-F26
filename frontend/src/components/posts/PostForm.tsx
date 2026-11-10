@@ -35,13 +35,13 @@ function FieldError({ message }: { message?: string }) {
 export function PostForm({ initial, onSubmit, onCancel }: PostFormProps) {
   // Every field is plain text while typing. When editing, start with the post's current values.
   const [values, setValues] = useState<PostFormValues>({
-    problemNumber: initial?.problemNumber.toString() ?? '',
-    problemName: initial?.problemName ?? '',
-    difficulty: initial?.difficulty ?? 'Easy',
+    problemNumber: initial?.problem.number.toString() ?? '',
+    problemName: initial?.problem.title ?? '',
+    difficulty: initial?.problem.difficulty ?? 'Easy',
     description: initial?.description ?? '',
-    tags: initial?.tags.map((t) => `#${t}`).join(' ') ?? '',
+    tags: initial?.problem.tags.map((t) => `#${t}`).join(' ') ?? '',
     timeComplexity: initial?.timeComplexity ?? '',
-    spaceComplexity: initial?.spaceComplexity ?? '',
+    spaceComplexity: '',
     solutionUrl: initial?.solution ?? '',
   });
   const [errors, setErrors] = useState<FieldErrors>({});

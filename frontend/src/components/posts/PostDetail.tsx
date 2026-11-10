@@ -128,10 +128,10 @@ export function PostDetail({ id }: { id: string }) {
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-bold">
           {problemTitle(post)}
-          {post.difficulty && (
-            <span className={DIFFICULTY_COLOR[post.difficulty]}>
+          {post.problem.difficulty && (
+            <span className={DIFFICULTY_COLOR[post.problem.difficulty]}>
               {' '}
-              ({post.difficulty})
+              ({post.problem.difficulty})
             </span>
           )}
         </h1>

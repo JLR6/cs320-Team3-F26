@@ -50,7 +50,14 @@ describe('PostForm', () => {
     const onCancel = vi.fn();
     render(
       <PostForm
-        initial={makePost({ tags: ['BFS', 'HashTable'] })}
+        initial={makePost({
+          problem: {
+            number: 1,
+            title: 'Two Sum',
+            difficulty: 'Easy',
+            tags: ['BFS', 'HashTable'],
+          },
+        })}
         onSubmit={vi.fn()}
         onCancel={onCancel}
       />,

@@ -1,6 +1,14 @@
-// Post types used by the UI and posts-api.ts.
-// Optional fields are not stored by the backend yet (see the TODOs in posts-api.ts).
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
+
+export type Problem = {
+  number: number;
+  title: string;
+  description?: string;
+  difficulty?: Difficulty;
+  link?: string;
+  officialSolution?: string;
+  tags: string[];
+};
 
 export type PostAuthor = { id: string; username: string };
 
@@ -15,19 +23,25 @@ export type PostComment = {
 export type Post = {
   id: string;
   author: PostAuthor;
-  problemNumber: number;
+  problem: Problem;
   description: string;
   solution: string; // LeetCode solution link
   timeComplexity: string;
-  tags: string[];
   likeCount: number;
   likedByMe: boolean;
   comments: PostComment[];
   createdAt: string;
   updatedAt?: string;
-  problemName?: string; // not stored yet
-  difficulty?: Difficulty; // not stored yet
-  spaceComplexity?: string; // not stored yet
+  /** @deprecated Use problem.number and problem.title. */
+  problemNumber?: number;
+  /** @deprecated Use problem.title. */
+  problemName?: string;
+  /** @deprecated Use problem.difficulty. */
+  difficulty?: Difficulty;
+  /** @deprecated Use problem.tags. */
+  tags?: string[];
+  /** @deprecated Space complexity is not persisted on posts. */
+  spaceComplexity?: string;
 };
 
 // What the create/edit form sends (the 4 fields the backend saves)
