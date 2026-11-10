@@ -5,6 +5,8 @@ export interface UpdatePostDto {
   post_description?: string | null;
   user_solution?: string | null;
   user_time_complexity?: string | null;
+  user_space_complexity?: string | null;
+  solution_url?: string | null;
 }
 
 export interface CreatePostDto extends UpdatePostDto {
@@ -26,7 +28,10 @@ export function parseUpdatePost(body: unknown): UpdatePostDto {
         throw new BadRequestException('problem_number must be a PostgreSQL integer');
       }
       result.problem_number = value;
-    } else if (field === 'post_description' || field === 'user_solution' || field === 'user_time_complexity') {
+    } else if (
+      field === 'post_description' || field === 'user_solution' || field === 'user_time_complexity'
+      || field === 'user_space_complexity' || field === 'solution_url'
+    ) {
       if (value !== null && typeof value !== 'string') {
         throw new BadRequestException(`${field} must be a string or null`);
       }
