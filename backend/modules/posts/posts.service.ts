@@ -139,8 +139,6 @@ export class PostsService {
       .returns<(PostResponse & { problems?: { tags: { tag_name: string }[] } })[]>();
 
     if (error) {
-      console.error("❌ Supabase PostgREST Error Dump:", JSON.stringify(error, null, 2));
-     
       this.fail(status, 'Unable to fetch posts');
     }
 
@@ -225,8 +223,6 @@ export class PostsService {
   private fail(status: number, message: string): never {
     if (status === 401) throw new UnauthorizedException('Invalid or expired access token');
     if (status === 403) throw new ForbiddenException('Operation not permitted');
-
-    console.error(`🛑 [PostsService Database Error] Status: ${status} | Message: ${message}`);
     
     throw new InternalServerErrorException(message);
   }
