@@ -1,4 +1,4 @@
-import { Providers } from "../providers";
+import { Providers } from '../providers';
 
 export default function DashboardLayout({
   children,
@@ -7,9 +7,7 @@ export default function DashboardLayout({
 }) {
   return (
     <section>
-      <Providers>
-      {children}
-      </Providers>
+      <Providers>{children}</Providers>
     </section>
   );
 }
