@@ -37,10 +37,6 @@ export default defineConfig({
         '**/*.d.ts',
         'src/lib/routes.ts', // nothing really here to test besides checking url when going to distinct posts
         'src/lib/mock-user.ts', // mock user is only used in e2e tests, not worth testing through unit tests
-        'src/types/**/*.{ts,tsx}', // types are not worth testing
-        'src/components/**/presentation/**/*.{ts,tsx}', // presentation components are components without any logic besides rendering
-        '**/*.test.{ts,tsx}',
-        '**/*.d.ts',
       ],
       reporter: ['text', 'html', 'lcov'],
       reportOnFailure: true,

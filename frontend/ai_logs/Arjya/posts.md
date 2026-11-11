@@ -16,22 +16,6 @@ Posts UI
 ### For integration
 
 - it seems like I only really need to modify posts-api.ts to make it work, which only needs the endpoints.
--
-
-### For integration
-
-- it seems like I only really need to modify posts-api.ts to make it work, which only needs the endpoints.
--
-
-### For integration
-
-- it seems like I only really need to modify posts-api.ts to make it work, which only needs the endpoints.
--
-
-### For integration
-
-- it seems like I only really need to modify posts-api.ts to make it work, which only needs the endpoints.
--
 
 ## Resource Usage
 
