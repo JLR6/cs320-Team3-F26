@@ -1,6 +1,6 @@
+import { ThemeProvider } from '@/components/ThemeProvider';
 import './globals.css';
 import { Toaster } from '@/components/ui/sonner';
-import { Providers } from './providers';
 
 import { Inter, JetBrains_Mono } from 'next/font/google';
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' });
@@ -17,8 +17,10 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
       suppressHydrationWarning
     >
       <body className="bg-background text-foreground font-sans antialiased">
-        <Providers>{children}</Providers>
-        <Toaster />
+        <ThemeProvider>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

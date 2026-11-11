@@ -1,4 +1,4 @@
-import UpdatePassword from '@/components/auth/passReset';
+import UpdatePassword from '@/components/auth/PassResetForm';
 
 // Routes /forgotPass to the ForgotPass component
 export default function ForgotPassPage() {
