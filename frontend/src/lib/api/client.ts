@@ -26,6 +26,10 @@ export async function apiFetch<T>(
     ...init,
     headers,
   });
-  if (!res.ok) throw new ApiError(res.status, await res.text());
+  if (!res.ok)
+    throw new ApiError(
+      res.status,
+      `Error fetching "${path}". Recieved status "${res.status}: ${res.statusText}"`,
+    );
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
 }
