@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../src/integrations/supabase/supabase.service';
+import { POST_AUDIO_BUCKET } from '../post-audio/post-audio.service';
 import { LeetCodeService } from '../problems/leetcode.service';
 import { ProblemsService } from '../problems/problems.service';
 import type { CreatePostDto, UpdatePostDto } from './dto/post-content.dto';
@@ -212,12 +213,20 @@ export class PostsService {
   }
 
   async remove(accessToken: string, id: string): Promise<void> {
-    const { data, error, status } = await this.supabase.forUser(accessToken)
-      .from('posts').delete().eq('post_id', id).select('post_id').maybeSingle<{ post_id: string }>();
+    const client = this.supabase.forUser(accessToken);
+    const { data, error, status } = await client
+      .from('posts').delete().eq('post_id', id)
+      .select('post_id, audio_path').maybeSingle<{ post_id: string; audio_path?: string | null }>();
 
     if (error?.code === '23503') throw new ConflictException('Post has dependent likes or comments');
     if (error) this.fail(status, 'Unable to delete post');
     if (!data) throw new NotFoundException('Post not found or not editable');
+
+    // Delete the post's audio recording too, so the file isn't left in storage.
+    // Best-effort: the post is already gone, so a failure here only leaves an unused file.
+    if (data.audio_path) {
+      await client.storage.from(POST_AUDIO_BUCKET).remove([data.audio_path]);
+    }
   }
 
   private fail(status: number, message: string): never {
