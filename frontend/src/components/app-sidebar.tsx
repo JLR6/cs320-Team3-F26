@@ -83,7 +83,7 @@ type SidebarData = {
     icon: LucideIcon;
     url: string;
   }[];
-  enabledActionsMain?: ActionTypeMain[];
+  enabledActionsMain: ActionTypeMain[];
   navSubmenu?: {
     title: string;
     items: { title: string; url: string }[];
@@ -178,8 +178,8 @@ function NavMain({ data }: { data: SidebarData['navMain'] }) {
  */
 function SignUpButton() {
   return (
-    <SidebarMenuButton variant="primaryRound">
-      <Link href="/signup">{ActionTypeMain.SignUp}</Link>
+    <SidebarMenuButton variant="primaryRound" render={<Link href="/signup" />}>
+      {ActionTypeMain.SignUp}
     </SidebarMenuButton>
   );
 }
@@ -190,8 +190,8 @@ function SignUpButton() {
  */
 function LogInButton() {
   return (
-    <SidebarMenuButton variant="secondaryRound">
-      <Link href="/login">{ActionTypeMain.LogIn}</Link>
+    <SidebarMenuButton variant="secondaryRound" render={<Link href="/login" />}>
+      {ActionTypeMain.LogIn}
     </SidebarMenuButton>
   );
 }
@@ -230,7 +230,7 @@ function ActionMain(type: ActionTypeMain) {
  * The SidebarMenu containing the main actions (mapped from data.enabledActionsMain)
  */
 function ActionsMain({ data }: { data: SidebarData['enabledActionsMain'] }) {
-  return data ? (
+  return data.length ? (
     <SidebarMenu className="mt-1.5">
       {data.map((type) => {
         const Element = ActionMain(type);
@@ -264,7 +264,7 @@ function ActionSubmenu(type: ActionTypeSubmenu) {
  * The Popover for submenu actions (mapped from data.navSubmenu.enabledActions)
  */
 function NavSubmenuPopover({ data }: { data: ActionTypeSubmenu[] }) {
-  return data ? (
+  return data.length ? (
     <Popover>
       <PopoverTriggerDropdown>
         <Plus />
@@ -435,33 +435,39 @@ function AppSidebarFooter({ data }: { data: SidebarData['user'] }) {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  // const { authUser, dbUser } = useUser();
-
   // authentication state
   const authUser = useUser();
+  const username = authUser?.user_metadata.username;
   const data = authUser ? { ...loggedInData } : { ...loggedOutData };
 
-  // for the logged in sidebar
-  const [families, setFamilies] = React.useState([]);
+  // data to be loaded for the logged in sidebar
+  const [families, setFamilies] = React.useState<
+    { title: string; url: string }[]
+  >([]);
   const [profilePicture, setProfilePicture] = React.useState<
     string | undefined
   >();
 
-  if (authUser) {
-    const username = authUser.user_metadata.username
+  React.useEffect(() => {
+    if (!username) return;
 
     apiFetch('/user-families').then((json) => {
       setFamilies(
-        json.map((membership) => ({ title: membership.id, url: '#' })),
+        json.map((membership) => ({
+          title: membership.id,
+          url: `/families/${membership.id}`,
+        })),
       );
     });
     getUserByUsername(username).then((json) => {
       setProfilePicture(json.profile_picture ?? undefined);
     });
+  }, [username]);
 
-    data.user!.title = username;
+  if (username) {
     data.navMain[1].url = `/profile/${username}`;
-    if (families) data.navSubmenu!.items = families;
+    data.navSubmenu!.items = families;
+    data.user!.title = username;
     if (profilePicture) data.user!.profilePicture = profilePicture;
   }
 

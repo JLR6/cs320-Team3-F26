@@ -18,7 +18,7 @@ export default defineConfig({
         'src/components/ThemeProvider.tsx', // theme boilerplate, not worth testing
         // these are components that are more worth testing visually, not through unit tests
         'src/components/app-header.tsx',
-        'src/components/app-sidebar.tsx',
+        'src/components/app-card.tsx',
         'src/app/layout.tsx', // layout is a visual thing, not worth testing through unit tests
         'src/app/**/page.tsx', // pages are all layout and visual components
         'src/hooks/use-mobile.ts', // shadcn sidebar helper
