@@ -409,6 +409,20 @@ describe('PostsService', () => {
     const [input, options] = fetchMock.mock.calls[0];
     expect(options?.method).toBe('DELETE');
     expect(new URL(String(input)).searchParams.get('post_id')).toBe(`eq.${post.post_id}`);
+    expect(fetchMock).toHaveBeenCalledOnce(); // no audio, so nothing to clean up in storage
+  });
+
+  it('deletes the post\'s audio file from storage when it had one', async () => {
+    const audioPath = `${post.user_id}/${post.post_id}-1.webm`;
+    fetchMock
+      .mockResolvedValueOnce(Response.json({ post_id: post.post_id, audio_path: audioPath }))
+      .mockResolvedValueOnce(Response.json([]));
+    await expect(service.remove('user-token', post.post_id)).resolves.toBeUndefined();
+
+    const [input, options] = fetchMock.mock.calls[1];
+    expect(options?.method).toBe('DELETE');
+    expect(new URL(String(input)).pathname).toBe('/storage/v1/object/PostAudio');
+    expect(JSON.parse(String(options?.body))).toEqual({ prefixes: [audioPath] });
   });
 
   function mockUser() {
