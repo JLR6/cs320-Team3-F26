@@ -1,0 +1,14 @@
+node_modules/
+dist/
+.next/
+coverage/
+playwright-report/
+test-results/
+*.tsbuildinfo
+.env
+.env.*
+!.env.example
+backend/supabase/.temp/
+backend/supabase/.branches/
+__pycache__/
+.DS_Store
