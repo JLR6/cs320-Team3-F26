@@ -83,7 +83,7 @@ const loggedInData = {
     {
       title: 'Profile',
       icon: UserRound,
-      url: '/profile/this_is_a_sample_url',
+      url: '/profile', // your own profile; other people's are /profile/<username>
     },
   ],
   // The sidebar's enabled actions (Create Post, Sign up, Log in)

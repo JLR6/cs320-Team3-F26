@@ -21,6 +21,7 @@ export default defineConfig({
         'src/components/app-sidebar.tsx',
         'src/app/layout.tsx', // layout is a visual thing, not worth testing through unit tests
         'src/app/**/page.tsx', // pages are all layout and visual components
+        'src/app/**/layout.tsx', // nested layouts only arrange the sidebar around a page
         'src/hooks/use-mobile.ts', // shadcn sidebar helper
         'src/lib/supabase/client.ts', // client and server are both boilerplate while proxy is actually manually modified
         'src/lib/supabase/server.ts',
