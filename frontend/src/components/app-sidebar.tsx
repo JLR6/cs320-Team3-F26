@@ -452,11 +452,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     if (!username) return;
 
     apiFetch('/user-families').then((json) => {
-      const memberships = json as { id: string }[];
+      const families = json as { name: string }[];
       setFamilies(
-        memberships.map((membership) => ({
-          title: membership.id,
-          url: `/families/${membership.id}`,
+        families.map((family) => ({
+          title: family.name,
+          url: `/families/${family.name}`,
         })),
       );
     });
