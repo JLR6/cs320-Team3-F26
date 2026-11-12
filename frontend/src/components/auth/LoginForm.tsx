@@ -5,13 +5,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { PasswordInput } from './PasswordInput';
 import { FieldError } from './FieldError';
 import { loginSchema, type LoginValues } from '@/lib/validation/auth';
 import { createClient } from '@/lib/supabase/client';
+import { AppCardInput, AppCardButton } from '@/components/app-card';
 
 export function LoginForm({ next }: { next: string }) {
   const router = useRouter();
@@ -46,42 +43,35 @@ export function LoginForm({ next }: { next: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-4">
-      <div className="space-y-2">
-        <Label htmlFor="email">Email</Label>
-        <Input
-          id="email"
-          type="email"
-          autoComplete="email"
-          aria-invalid={!!errors.email}
-          aria-describedby={errors.email ? 'email-error' : undefined}
-          {...register('email')}
-        />
-        <FieldError id="email-error" message={errors.email?.message} />
-      </div>
+    <form onSubmit={handleSubmit(onSubmit)} noValidate>
+      <AppCardInput
+        id="email"
+        type="email"
+        placeholder="Email"
+        autoComplete="email"
+        {...register('email')}
+      />
+      <FieldError id="email-error" message={errors.email?.message} />
 
-      <div className="space-y-2">
-        <Label htmlFor="password">Password</Label>
-        <PasswordInput
-          id="password"
-          autoComplete="current-password"
-          aria-invalid={!!errors.password}
-          aria-describedby={errors.password ? 'password-error' : undefined}
-          {...register('password')}
-        />
-        <FieldError id="password-error" message={errors.password?.message} />
-      </div>
+      <AppCardInput
+        id="password"
+        placeholder="Password"
+        autoComplete="current-password"
+        asPassword
+        {...register('password')}
+      />
+      <FieldError id="password-error" message={errors.password?.message} />
 
-      <Button type="submit" className="w-full" disabled={isSubmitting}>
+      <AppCardButton size="lg" type="submit" disabled={isSubmitting}>
         {isSubmitting ? (
           <>
             <Loader2 className="size-4 animate-spin" />
-            Logging in...
+            Signing in...
           </>
         ) : (
-          'Log in'
+          'Sign In'
         )}
-      </Button>
+      </AppCardButton>
     </form>
   );
 }
