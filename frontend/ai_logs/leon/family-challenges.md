@@ -4,13 +4,15 @@ Family Challenges Frontend
 
 ## Main Takeaways
 
-(To be completed manually.)
+-Learned/got more experience with Next.js and React. Used Next.js routing
+-Connected frontend to backend. Called the challenges API to retrieve, create, update, and delete challenges
+-Learned how useState and useEffect help manage challenge data
 
 ## Resource Usage
 
 Tool and Model(s) Used: ChatGPT (GPT-6)
 
-Tokens Used & Dollar Equivalent: ChatGPT Plus subscription, exact token usage unavailable.
+Tokens Used & Dollar Equivalent: ChatGPT Plus subscription ~50,000 tokens
 
 ## AI Usage
 
