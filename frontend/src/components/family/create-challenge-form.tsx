@@ -6,10 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ApiError } from '@/lib/api/client';
-import { createChallenge, type Challenge } from '@/lib/api/challenges';
+import {
+  createChallenge,
+  updateChallenge,
+  type Challenge,
+  type ChallengeInput,
+} from '@/lib/api/challenges';
 
 type Props = {
   familyId: string;
+  challenge?: Challenge;
   onCreated: (challenge: Challenge) => void;
   onCancel: () => void;
 };
@@ -19,19 +25,29 @@ function addSixDays(date: string) {
   return new Date(time + 6 * 86400000).toISOString().slice(0, 10);
 }
 
-export function CreateChallengeForm({ familyId, onCreated, onCancel }: Props) {
-  const [easy, setEasy] = useState('0');
-  const [medium, setMedium] = useState('0');
-  const [hard, setHard] = useState('0');
+export function CreateChallengeForm({
+  familyId,
+  challenge,
+  onCreated,
+  onCancel,
+}: Props) {
+  const [easy, setEasy] = useState(String(challenge?.required_easy ?? 0));
+  const [medium, setMedium] = useState(String(challenge?.required_medium ?? 0));
+  const [hard, setHard] = useState(String(challenge?.required_hard ?? 0));
   const [startDate, setStartDate] = useState(
-    new Date().toISOString().slice(0, 10),
+    challenge?.start_date ?? new Date().toISOString().slice(0, 10),
   );
-  const [endDate, setEndDate] = useState(() =>
-    addSixDays(new Date().toISOString().slice(0, 10)),
+  const [endDate, setEndDate] = useState(
+    () =>
+      challenge?.end_date ?? addSixDays(new Date().toISOString().slice(0, 10)),
   );
-  const [problems, setProblems] = useState('');
-  const [reward, setReward] = useState('');
-  const [punishment, setPunishment] = useState('');
+  const [problems, setProblems] = useState(
+    challenge?.problem_order.join(', ') ?? '',
+  );
+  const [reward, setReward] = useState(challenge?.reward_description ?? '');
+  const [punishment, setPunishment] = useState(
+    challenge?.punishment_description ?? '',
+  );
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -74,7 +90,7 @@ export function CreateChallengeForm({ familyId, onCreated, onCancel }: Props) {
     setSaving(true);
 
     try {
-      const challenge = await createChallenge(familyId, {
+      const input: ChallengeInput = {
         required_easy: Number(easy),
         required_medium: Number(medium),
         required_hard: Number(hard),
@@ -83,12 +99,16 @@ export function CreateChallengeForm({ familyId, onCreated, onCancel }: Props) {
         problem_order: problemNumbers,
         reward_description: reward.trim(),
         punishment_description: punishment.trim(),
-      });
+      };
 
-      onCreated(challenge);
+      const saved = challenge
+        ? await updateChallenge(familyId, challenge.id, input)
+        : await createChallenge(familyId, input);
+
+      onCreated(saved);
     } catch (err) {
       if (err instanceof ApiError && err.status === 403) {
-        setError('Only family owners and admins can create challenges.');
+        setError('Only family owners and admins can manage challenges.');
       } else if (err instanceof ApiError && err.status === 401) {
         setError('Please log in to create a challenge.');
       } else if (err instanceof ApiError && err.status === 400) {
@@ -96,7 +116,11 @@ export function CreateChallengeForm({ familyId, onCreated, onCancel }: Props) {
           'Check your dates and problem numbers. Assigned problems must exist in the database.',
         );
       } else {
-        setError('Could not create the challenge. Please try again.');
+        setError(
+          challenge
+            ? 'Could not update the challenge. Please try again.'
+            : 'Could not create the challenge. Please try again.',
+        );
       }
     } finally {
       setSaving(false);
@@ -106,7 +130,9 @@ export function CreateChallengeForm({ familyId, onCreated, onCancel }: Props) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Create Challenge</CardTitle>
+        <CardTitle>
+          {challenge ? 'Edit Challenge' : 'Create Challenge'}
+        </CardTitle>
       </CardHeader>
 
       <CardContent>
@@ -220,7 +246,11 @@ export function CreateChallengeForm({ familyId, onCreated, onCancel }: Props) {
               Cancel
             </Button>
             <Button type="submit" disabled={saving}>
-              {saving ? 'Creating...' : 'Create Challenge'}
+              {saving
+                ? 'Saving...'
+                : challenge
+                  ? 'Save Changes'
+                  : 'Create Challenge'}
             </Button>
           </div>
         </form>
@@ -228,4 +258,3 @@ export function CreateChallengeForm({ familyId, onCreated, onCancel }: Props) {
     </Card>
   );
 }
-

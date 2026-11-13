@@ -2,9 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 
-const { createChallenge } = vi.hoisted(() => ({ createChallenge: vi.fn() }));
+const { createChallenge, updateChallenge } = vi.hoisted(() => ({
+  createChallenge: vi.fn(),
+  updateChallenge: vi.fn(),
+}));
 // use a fake API response instead of actually creating challenges
-vi.mock('@/lib/api/challenges', () => ({ createChallenge }));
+vi.mock('@/lib/api/challenges', () => ({ createChallenge, updateChallenge }));
 
 import { CreateChallengeForm } from './create-challenge-form';
 
@@ -82,5 +85,50 @@ describe('CreateChallengeForm', () => {
     renderForm();
     await user.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(onCancel).toHaveBeenCalledOnce();
+  });
+
+  // make sure editing loads the old values and saves them
+  it('edits an existing challenge', async () => {
+    const challenge = {
+      id: 'challenge1',
+      family_id: 'family1',
+      required_easy: 2,
+      required_medium: 1,
+      required_hard: 0,
+      start_date: '2026-11-12',
+      end_date: '2026-11-18',
+      problem_order: [],
+      reward_description: '',
+      punishment_description: '',
+      created_by: 'user1',
+      created_at: null,
+      updated_at: null,
+    };
+
+    const user = userEvent.setup();
+    updateChallenge.mockResolvedValue(challenge);
+
+    render(
+      <CreateChallengeForm
+        familyId="family1"
+        challenge={challenge}
+        onCreated={onCreated}
+        onCancel={onCancel}
+      />,
+    );
+
+    expect(screen.getByLabelText('Easy')).toHaveValue(2);
+
+    await user.click(screen.getByRole('button', { name: 'Save Changes' }));
+
+    await waitFor(() => {
+      expect(updateChallenge).toHaveBeenCalledWith(
+        'family1',
+        'challenge1',
+        expect.objectContaining({ required_easy: 2 }),
+      );
+    });
+
+    expect(onCreated).toHaveBeenCalledWith(challenge);
   });
 });

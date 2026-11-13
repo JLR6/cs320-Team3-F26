@@ -40,3 +40,20 @@ export function createChallenge(familyId: string, input: ChallengeInput) {
     body: JSON.stringify(input),
   });
 }
+
+export function updateChallenge(
+  familyId: string,
+  challengeId: string,
+  input: ChallengeInput,
+) {
+  return apiFetch<Challenge>(
+    `/families/${familyId}/challenges/${challengeId}`,
+    { method: 'PATCH', body: JSON.stringify(input) },
+  );
+}
+
+export function deleteChallenge(familyId: string, challengeId: string) {
+  return apiFetch<void>(`/families/${familyId}/challenges/${challengeId}`, {
+    method: 'DELETE',
+  });
+}
