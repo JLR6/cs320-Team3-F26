@@ -11,7 +11,7 @@ import { FieldError } from '@/components/auth/FieldError';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
-export default function UpdatePassword() {
+export function UpdatePassword() {
   const {
     register,
     handleSubmit,
