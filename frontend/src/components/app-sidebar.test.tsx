@@ -129,7 +129,10 @@ describe('AppSidebar', () => {
   it('renders the logged in state (families)', async () => {
     // mocking the logged in state and rendering
     mockedUseUser.mockReturnValue(testAuthUser);
-    mockedApiFetch.mockResolvedValue([{ name: 'aaa-AAA' }, { name: 'BBB-bbb' }]);
+    mockedApiFetch.mockResolvedValue([
+      { name: 'aaa-AAA' },
+      { name: 'BBB-bbb' },
+    ]);
     mockedGetUserByUsername.mockResolvedValue(testDbUser);
     render(
       <SidebarProvider>

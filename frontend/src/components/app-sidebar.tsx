@@ -97,43 +97,41 @@ type SidebarData = {
   };
 };
 
-// Sample data that constructs the logged in sidebar
-const loggedInData: SidebarData = {
-  // The sidebar's navigation buttons (Home, Profile)
-  navMain: [
-    {
-      title: 'Home',
-      icon: House,
-      url: '/',
-    },
-    {
-      title: 'Profile',
-      icon: UserRound,
-      url: '#',
-    },
-  ],
-  // The sidebar's enabled actions (Create Post, Sign up, Log in)
-  enabledActionsMain: [ActionTypeMain.CreatePost],
-  // The sidebar's submenu (My Families)
-  navSubmenu: {
-    title: 'My Families',
-    items: [],
-    // noItemsMessage: 'You are not part of any LeetMeet families',
-    enabledActions: [ActionTypeSubmenu.CreateFamily],
-  },
-  // User information, if available
-  user: {
-    title: 'Loading...',
-    profilePicture: 'https://assets.leetcode.com/users/default_avatar.jpg',
-    enabledActions: [
-      ActionTypeUser.Settings,
-      ActionTypeUser.Appearance,
-      ActionTypeUser.SignOut,
+// Data that constructs the logged in sidebar
+function loggedInData(username: string): SidebarData {
+  return {
+    navMain: [
+      {
+        title: 'Home',
+        icon: House,
+        url: '/',
+      },
+      {
+        title: 'Profile',
+        icon: UserRound,
+        url: `/profile/${username}`,
+      },
     ],
-  },
-};
+    enabledActionsMain: [ActionTypeMain.CreatePost],
+    navSubmenu: {
+      title: 'My Families',
+      items: [],
+      // noItemsMessage: 'You are not part of any LeetMeet families',
+      enabledActions: [ActionTypeSubmenu.CreateFamily],
+    },
+    user: {
+      title: username,
+      profilePicture: 'https://assets.leetcode.com/users/default_avatar.jpg',
+      enabledActions: [
+        ActionTypeUser.Settings,
+        ActionTypeUser.Appearance,
+        ActionTypeUser.SignOut,
+      ],
+    },
+  };
+}
 
-// Sample data that constructs the logged out sidebar
+// Data that constructs the logged out sidebar
 const loggedOutData: SidebarData = {
   navMain: [
     {
@@ -384,7 +382,9 @@ function AppearancePopoverButton() {
  */
 function SignOutPopoverButton() {
   return (
-    <PopoverMenuButton onClick={() => createClient().auth.signOut()}>
+    <PopoverMenuButton
+      onClick={() => createClient().auth.signOut({ scope: 'local' })}
+    >
       <LogOut className="h-4.5! w-4.5!" />
       {ActionTypeUser.SignOut}
     </PopoverMenuButton>
@@ -438,7 +438,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   // authentication state
   const authUser = useUser();
   const username = authUser?.user_metadata.username;
-  const data = authUser ? { ...loggedInData } : { ...loggedOutData };
+  const data = username ? loggedInData(username) : loggedOutData;
 
   // data to be loaded for the logged in sidebar
   const [families, setFamilies] = React.useState<
@@ -448,9 +448,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     string | undefined
   >();
 
-  React.useEffect(() => {
-    if (!username) return;
-
+  if (username) {
     apiFetch('/user-families').then((json) => {
       const families = json as { name: string }[];
       setFamilies(
@@ -463,12 +461,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     getUserByUsername(username).then((json) => {
       setProfilePicture(json.profile_picture ?? undefined);
     });
-  }, [username]);
 
-  if (username) {
-    data.navMain[1].url = `/profile/${username}`;
     data.navSubmenu!.items = families;
-    data.user!.title = username;
     if (profilePicture) data.user!.profilePicture = profilePicture;
   }
 
