@@ -1,6 +1,5 @@
 'use client';
 
-import React, { useState } from 'react';
 import { AppCardInput, AppCardButton } from '@/components/app-card';
 import { Loader2 } from 'lucide-react';
 import { useForm } from 'react-hook-form';
@@ -12,6 +11,8 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 
 export function UpdatePassword() {
+  const router = useRouter();
+
   const {
     register,
     handleSubmit,
@@ -27,9 +28,8 @@ export function UpdatePassword() {
   async function onSubmit(values: PassResetValues) {
     try {
       const supabase = createClient();
-      const router = useRouter();
 
-      const { data, error } = await supabase.auth.updateUser({
+      const { error } = await supabase.auth.updateUser({
         password: values.password,
       });
 
@@ -37,19 +37,16 @@ export function UpdatePassword() {
         if (error.code === 'weak_password') {
           setError('password', { message: error.message });
         } else {
-          toast.error('Could not create your account. Please try again.');
+          toast.error('Could not update password. Please try again.');
         }
         return;
       }
 
       // logging out and redirecting to log in
-      if (data.user.aud) {
-        toast.success('Password changed!');
-        supabase.auth.signOut({scope: 'local'})
-        router.replace('/login');
-        router.refresh();
-        return;
-      }
+      toast.success('Password changed!');
+      supabase.auth.signOut({ scope: 'local' });
+      router.replace('/login');
+      router.refresh();
     } catch {
       toast.error('Something went wrong. Please try again.');
     }
