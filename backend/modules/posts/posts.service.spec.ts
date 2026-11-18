@@ -148,6 +148,58 @@ describe('PostsService', () => {
     expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
   });
 
+  // the profile page's posts: same view and token as the main feed, limited to one author
+  it("returns only one user's posts using the user token", async () => {
+    const post = { post_id: 'post-1', user_id: 'author-1', post_description: 'My post' };
+    fetchMock.mockResolvedValueOnce(Response.json([post]));
+
+    await expect(service.findByUser('user-token', 'author-1')).resolves.toEqual({
+      posts: [post], nextCursor: null, hasMore: false,
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [input, options] = fetchMock.mock.calls[0];
+    const url = new URL(String(input));
+    expect(url.pathname).toBe('/rest/v1/post_details');
+    expect(url.searchParams.get('user_id')).toBe('eq.author-1');
+    expect(url.searchParams.get('limit')).toBe('51');
+    expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
+  });
+
+  // the author filter works together with tag filtering and cursor pagination
+  it('combines the author filter with tags and a cursor', async () => {
+    const cursor = { post_id: 'post-9', created_at: '2026-10-24T12:30:45.123456' };
+    fetchMock.mockResolvedValueOnce(Response.json([]));
+
+    await expect(
+      service.findByUser('user-token', 'author-1', ['Array'], { cursor, limit: 10 }),
+    ).resolves.toEqual({ posts: [], nextCursor: null, hasMore: false });
+
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.get('user_id')).toBe('eq.author-1');
+    expect(url.searchParams.get('problems.matching_tags.tag_name')).toBe('in.("Array")');
+    expect(url.searchParams.get('or')).toContain('created_at.lt.2026-10-24T12:30:45.123456');
+    expect(url.searchParams.get('limit')).toBe('11');
+  });
+
+  // the main feed and following feed must not pick up an author filter
+  it('does not filter the main feed by author', async () => {
+    fetchMock.mockResolvedValueOnce(Response.json([]));
+    await service.findAll('user-token');
+    const url = new URL(String(fetchMock.mock.calls[0][0]));
+    expect(url.searchParams.has('user_id')).toBe(false);
+  });
+
+  // database errors are hidden the same way as the other feeds
+  it("hides database errors when loading a user's posts", async () => {
+    fetchMock.mockResolvedValueOnce(Response.json(
+      { message: 'Private database details', code: 'XX000' }, { status: 500 },
+    ));
+    const result = service.findByUser('user-token', 'author-1');
+    await expect(result).rejects.toBeInstanceOf(InternalServerErrorException);
+    await expect(result).rejects.toThrow('Unable to fetch posts');
+  });
+
   it('hides database errors when filtering by tags', async () => {
     fetchMock.mockResolvedValueOnce(Response.json(
       { message: 'Private database details', code: 'XX000' }, { status: 500 },
