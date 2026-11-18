@@ -94,11 +94,23 @@ export class PostsService {
     return this.findPage('following_post_details', accessToken, tags, pagination);
   }
 
+  // One user's posts (for their profile page), newest first, with the same
+  // tag filter and cursor pagination as the main feed.
+  findByUser(
+    accessToken: string,
+    userId: string,
+    tags: string[] = [],
+    pagination?: PostPagination,
+  ): Promise<PostsPage> {
+    return this.findPage('post_details', accessToken, tags, pagination, userId);
+  }
+
   private async findPage(
     source: 'post_details' | 'following_post_details',
     accessToken: string,
     tags: string[],
     { cursor, limit }: PostPagination = { limit: 50 },
+    authorId?: string, // only return posts written by this user
   ): Promise<PostsPage> {
     const client = this.supabase.forUser(accessToken);
 
@@ -111,6 +123,10 @@ export class PostsService {
           ? '*, problems!inner(tags(tag_name), matching_tags:tags!inner())'
           : '*',
       );
+
+    if (authorId) {
+      query = query.eq('user_id', authorId);
+    }
 
     if (tags.length > 0) {
       // Quote each name for PostgREST's in-list grammar, including literal quotes and backslashes.
