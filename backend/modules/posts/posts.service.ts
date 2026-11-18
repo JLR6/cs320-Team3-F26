@@ -223,6 +223,7 @@ export class PostsService {
   private fail(status: number, message: string): never {
     if (status === 401) throw new UnauthorizedException('Invalid or expired access token');
     if (status === 403) throw new ForbiddenException('Operation not permitted');
+    
     throw new InternalServerErrorException(message);
   }
 }
