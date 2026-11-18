@@ -25,7 +25,7 @@ const post = {
 describe('profile posts api', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  // the first page filters GET /posts by the user and keeps the page fields
+  // the first page asks for that user's posts and keeps the page fields
   it('getUserPosts asks for one user and returns the parsed page', async () => {
     apiFetch.mockResolvedValue({
       posts: [post],
@@ -34,7 +34,7 @@ describe('profile posts api', () => {
     });
     const page = await getUserPosts('u2');
 
-    expect(apiFetch).toHaveBeenCalledWith('/posts?user=u2&limit=20');
+    expect(apiFetch).toHaveBeenCalledWith('/posts/user/u2?limit=20');
     expect(page.hasMore).toBe(false);
     expect(page.posts[0].problemName).toBe('Trapping Rain Water');
     expect(page.posts[0]).not.toHaveProperty('post_id');
@@ -44,7 +44,7 @@ describe('profile posts api', () => {
   it('getUserPosts sends the cursor for the next page', async () => {
     apiFetch.mockResolvedValue({ posts: [], nextCursor: null, hasMore: false });
     await getUserPosts('u2', 'abc');
-    expect(apiFetch).toHaveBeenCalledWith('/posts?user=u2&limit=20&cursor=abc');
+    expect(apiFetch).toHaveBeenCalledWith('/posts/user/u2?limit=20&cursor=abc');
   });
 
   // missing tags and comments default to empty lists

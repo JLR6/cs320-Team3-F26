@@ -31,13 +31,11 @@ export type ProfilePostsPage = z.infer<typeof profilePostsPageSchema>;
 
 export const PROFILE_PAGE_SIZE = 20;
 
-// Posts written by one user, newest first.
-// NOTE: the "user" filter on GET /posts is not on dev yet (confirm the name with the backend team).
+// Posts written by one user, newest first (GET /posts/user/:userId)
 export async function getUserPosts(userId: string, cursor?: string | null) {
-  const params = new URLSearchParams({
-    user: userId,
-    limit: String(PROFILE_PAGE_SIZE),
-  });
+  const params = new URLSearchParams({ limit: String(PROFILE_PAGE_SIZE) });
   if (cursor) params.set('cursor', cursor);
-  return profilePostsPageSchema.parse(await apiFetch(`/posts?${params}`));
+  return profilePostsPageSchema.parse(
+    await apiFetch(`/posts/user/${encodeURIComponent(userId)}?${params}`),
+  );
 }
