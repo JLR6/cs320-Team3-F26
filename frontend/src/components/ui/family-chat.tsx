@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { RealtimeChat } from '@/components/realtime-chat';
 import { createClient } from '@/lib/supabase/client';
 import { ChatMessage } from '@/hooks/use-realtime-chat';
@@ -22,11 +22,15 @@ export const FamilyChat = ({ familyId, username }: { familyId: string; username:
                 if (!cancelled) {
                     if (error) {
                         console.error('Error fetching family messages:', error);
-                    } else {
-                        setInitialMessages(data as ChatMessage[]);
-                    }
+                    } 
+                    const messages = data?.map((message) => ({
+                        id: message.id,
+                        user: { name: message.username },
+                        content: message.content,
+                        createdAt: message.created_at,
+                    })) || [];
+                    setInitialMessages(messages);
                 }
-                setInitialMessages(data as ChatMessage[]);
             });
 
         return () => {
@@ -34,17 +38,21 @@ export const FamilyChat = ({ familyId, username }: { familyId: string; username:
         };
     }, [familyId]); 
 
-    const handleNewMessages = async (messages: ChatMessage[]) => {
+    const handleNewMessages = useCallback(async (messages: ChatMessage[]) => {
+        const filteredMessages = messages.filter((message) => message.user.name === username);
+
+        if (filteredMessages.length === 0) { return}
+
         await supabase.from('family_messages').upsert(
-            messages.map((message) => ({
+            filteredMessages.map((message) => ({
                 id: message.id,
                 family_id: familyId,
-                username: username,
+                username: message.user.name,
                 content: message.content,
                 created_at: message.createdAt,
             }))
         );
-    }
+    }, [username, familyId]);
     
     return (
         <RealtimeChat
