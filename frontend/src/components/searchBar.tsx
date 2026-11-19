@@ -1,40 +1,39 @@
+'use client';
 
-"use client";
-
-import { useState } from "react";
+import { useState } from 'react';
 
 // TEMP!!! Example tags for the UI skeleton
 // MUST: Replace with real tags when connect w/ backend
 const availableTags = [
-  "#DFS",
-  "#Binary Tree",
-  "#Binary Search",
-  "#Pandas",
-  "#Time Complexity: O(n log n)",
-  "#Javascript",
-  "#Python",
-  "#Difficulty: Medium",
-  "#Google",
-  "#Amazon",
-  "#Database",
-  "#Stack",
-  "#Greedy",
-  "#36. Valid Sudoku",
-  "#42. Trapping Rain Water",
+  '#DFS',
+  '#Binary Tree',
+  '#Binary Search',
+  '#Pandas',
+  '#Time Complexity: O(n log n)',
+  '#Javascript',
+  '#Python',
+  '#Difficulty: Medium',
+  '#Google',
+  '#Amazon',
+  '#Database',
+  '#Stack',
+  '#Greedy',
+  '#36. Valid Sudoku',
+  '#42. Trapping Rain Water',
 ];
 
 export default function SearchBar() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
 
   // Filter tags based on what the user types
   const filteredTags = availableTags.filter((tag) => {
-  const searchTerms = search.toLowerCase().trim().split(/\s+/);
-  return (
-    selectedTags.includes(tag) ||
-    searchTerms.some((term) => tag.toLowerCase().includes(term))
-  );
-});
+    const searchTerms = search.toLowerCase().trim().split(/\s+/);
+    return (
+      selectedTags.includes(tag) ||
+      searchTerms.some((term) => tag.toLowerCase().includes(term))
+    );
+  });
 
   // Select or deselect a tag when clicking
   function toggleTag(tag: string) {
@@ -50,8 +49,7 @@ export default function SearchBar() {
   return (
     // Search Box
     <div className="h-90 w-67.25 rounded-[8px] bg-white p-4 shadow-[0px_0px_8px_0px_#0000001A]">
-      
-    {/* Title */}
+      {/* Title */}
       <h2 className="text-[15px] font-bold leading-4.5 text-black">
         Search Tags
       </h2>
@@ -73,7 +71,7 @@ export default function SearchBar() {
           <circle cx="11" cy="11" r="7" />
           <path d="m20 20-4-4" />
         </svg>
-          
+
         {/* Search input default text inside search bar*/}
         <input
           value={search}
@@ -97,8 +95,8 @@ export default function SearchBar() {
               aria-pressed={isSelected}
               className={`h-5.75 shrink-0 rounded-xl px-2.5 text-[12px] font-bold leading-none ${
                 isSelected
-                  ? "bg-[#FFA115] text-black"
-                  : "bg-[#F2F3F4] text-[#59595A]"
+                  ? 'bg-[#FFA115] text-black'
+                  : 'bg-[#F2F3F4] text-[#59595A]'
               }`}
             >
               {tag}
