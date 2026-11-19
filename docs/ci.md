@@ -54,8 +54,8 @@ functions, and branches, including unimported source files. Tests and declaratio
 are excluded; backend process startup is excluded from unit coverage and should
 be exercised by E2E tests. No `passWithNoTests` or coverage suppression is enabled.
 
-Actions are pinned to commit SHAs. Dependabot checks action and package updates
-weekly. Package downloads are cached; installed dependencies are not cached.
+Actions are pinned to commit SHAs. Dependency updates are managed manually.
+Package downloads are cached; installed dependencies are not cached.
 Read-only permissions, job timeouts, and cancellation of superseded runs are set.
 Coverage and failure diagnostics are retained for seven days.
 
