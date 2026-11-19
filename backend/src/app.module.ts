@@ -6,6 +6,7 @@ import { LikesModule } from '../modules/likes/likes.module';
 import { UsersModule } from '../modules/users/users.module';
 import { UserFamiliesModule } from '../modules/user-families/user-families.module';
 import { FamiliesModule } from '../modules/families/families.module';
+import { PostAudioModule } from '../modules/post-audio/post-audio.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { FamiliesModule } from '../modules/families/families.module';
     UsersModule,
     UserFamiliesModule,
     FamiliesModule,
+    PostAudioModule,
   ],
 })
 export class AppModule {}
