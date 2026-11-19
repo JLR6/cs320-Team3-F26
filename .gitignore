@@ -11,3 +11,4 @@ test-results/
 backend/supabase/.temp/
 backend/supabase/.branches/
 __pycache__/
+.DS_Store

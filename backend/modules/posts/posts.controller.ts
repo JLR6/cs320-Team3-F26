@@ -11,17 +11,64 @@ import {
   Patch,
   Post,
   UnauthorizedException,
+  BadRequestException,
+  Query,
 } from '@nestjs/common';
 import { PostsService } from './posts.service';
 import { parseCreatePost, parseUpdatePost } from './dto/post-content.dto';
+import { parsePostPagination } from './dto/post-pagination.dto';
 
 @Controller('posts')
 export class PostsController {
   constructor(@Inject(PostsService) private readonly postsService: PostsService) {}
 
   @Get()
-  findAll(@Headers('authorization') authorization?: string) {
-    return this.postsService.findAll(this.accessToken(authorization));
+  findAll(
+    @Headers('authorization') authorization?: string,
+    @Query('tag') tag?: unknown,
+    @Query('cursor') cursor?: unknown,
+    @Query('limit') limit?: unknown,
+  ) {
+    const tags = this.parseTags(tag);
+    return this.postsService.findAll(
+      this.accessToken(authorization),
+      tags,
+      parsePostPagination(cursor, limit),
+    );
+  }
+
+  @Get('following')
+  findFollowing(
+    @Headers('authorization') authorization?: string,
+    @Query('tag') tag?: unknown,
+    @Query('cursor') cursor?: unknown,
+    @Query('limit') limit?: unknown,
+  ) {
+    const tags = this.parseTags(tag);
+    return this.postsService.findFollowing(
+      this.accessToken(authorization),
+      tags,
+      parsePostPagination(cursor, limit),
+    );
+  }
+
+  // A single user's posts, e.g. for their profile page.
+  // Declared before ':id' so "user" is never treated as a post ID.
+  @Get('user/:userId')
+  findByUser(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Headers('authorization') authorization?: string,
+    @Query('tag') tag?: unknown,
+    @Query('cursor') cursor?: unknown,
+    @Query('limit') limit?: unknown,
+  ) {
+    const tags = this.parseTags(tag);
+    return this.postsService.findByUser(
+      this.accessToken(authorization),
+      userId,
+      tags,
+      parsePostPagination(cursor, limit),
+    );
   }
 
   @Get(':id')
@@ -58,6 +105,20 @@ export class PostsController {
     @Headers('authorization') authorization?: string,
   ) {
     await this.postsService.remove(this.accessToken(authorization), id);
+  }
+
+  private parseTags(tag: unknown): string[] {
+    const values = tag === undefined ? [] : Array.isArray(tag) ? tag : [tag];
+    const tags = new Set<string>();
+
+    for (const value of values) {
+      if (typeof value !== 'string' || !value.trim()) {
+        throw new BadRequestException('Each tag must be a non-empty string');
+      }
+      tags.add(value.trim());
+    }
+
+    return [...tags];
   }
 
   private accessToken(authorization?: string): string {
