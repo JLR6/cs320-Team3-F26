@@ -18,10 +18,18 @@ import type { Post, PostInput } from '@/types/post';
 import { DeletePostDialog } from '../DeletePostDialog';
 import { PostCard } from '../PostCard';
 import { PostFormDialog } from '../PostFormDialog';
+import {SearchBar} from '@/components/searchBar';
 
 export function PostFeed() {
   const user = useCurrentUser();
   const [feed, setFeed] = useState<FeedType>('main');
+  const [filters, setFilters] = useState({
+    tags: [] as string[],
+    difficulties: [] as string[],
+    timeComplexities: [] as string[],
+    q: '',
+    problemNumber: undefined as number | undefined,
+  });
   const [posts, setPosts] = useState<Post[] | null>(null); // null = loading
   const [cursor, setCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
@@ -35,7 +43,8 @@ export function PostFeed() {
     try {
       setPosts(null);
       setError(null);
-      const page = await getPosts(feed);
+      setCursor(null);
+      const page = await getPosts(feed, filters);
       setPosts(page.posts);
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
@@ -43,7 +52,7 @@ export function PostFeed() {
       setPosts([]);
       setError(errorMessage(e, "Couldn't load posts"));
     }
-  }, [feed]);
+  }, [feed, filters]);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -55,7 +64,7 @@ export function PostFeed() {
   // Load the next page
   async function loadMore() {
     try {
-      const page = await getPosts(feed, { cursor });
+      const page = await getPosts(feed, { ...filters, cursor });
       setPosts((list) => [...(list ?? []), ...page.posts]);
       setCursor(page.nextCursor);
       setHasMore(page.hasMore);
@@ -98,7 +107,9 @@ export function PostFeed() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-2xl space-y-4 p-4">
+      <div className="mx-auto flex w-full max-w-6xl items-start gap-6 p-4">
+
+    <div className="min-w-0 flex-1 space-y-4">
       <div className="flex items-center justify-between">
         <Tabs
           value={feed}
@@ -186,6 +197,10 @@ export function PostFeed() {
         onOpenChange={(o) => !o && setDeleting(null)}
         onConfirm={handleDelete}
       />
+        </div>
+      <aside className="hidden w-67.25 shrink-0 md:block">
+        <SearchBar onFiltersChange={setFilters} />
+      </aside>
     </div>
   );
 }

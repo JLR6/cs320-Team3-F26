@@ -33,6 +33,12 @@ export class ProblemsController {
     return this.problemsService.findAll(parseProblemFilters(difficulty, tag));
   }
 
+  // NEW: must stay above @Get(':problemNumber'), or "tags" is parsed as a number (400).
+  @Get('tags') // GET /problems/tags
+  findAllTags() {
+    return this.problemsService.findAllTags();
+  }
+
   @Get(':problemNumber') // GET /problems/1
   findOne(@Param('problemNumber', ParseIntPipe) problemNumber: number) {
     return this.problemsService.findOne(problemNumber);

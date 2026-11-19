@@ -19,6 +19,7 @@ describe('Problems HTTP endpoints', () => {
   const service = {
     findAll: vi.fn(), findOne: vi.fn(), create: vi.fn(),
     update: vi.fn(), remove: vi.fn(), findOrCreate: vi.fn(),
+    findAllTags: vi.fn(), // NEW
   };
 
   beforeAll(async () => {
@@ -48,6 +49,15 @@ describe('Problems HTTP endpoints', () => {
   it('GET /problems rejects a bad difficulty', async () => {
     await http().get('/problems?difficulty=Impossible').expect(400);
     expect(service.findAll).not.toHaveBeenCalled();
+  });
+
+  it('GET /problems/tags is public and returns every tag', async () => {
+    const tags = [{ id: 1, name: 'Array' }, { id: 2, name: 'Hash Table' }];
+    service.findAllTags.mockResolvedValue(tags);
+    await http().get('/problems/tags').expect(200, tags);
+    // "tags" must reach the tags route, not the :problemNumber route.
+    expect(service.findAllTags).toHaveBeenCalledOnce();
+    expect(service.findOne).not.toHaveBeenCalled();
   });
 
   it('GET /problems/:n returns one problem', async () => {

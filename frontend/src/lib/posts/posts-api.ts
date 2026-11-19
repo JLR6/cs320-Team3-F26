@@ -144,31 +144,56 @@ type GetPostsOptions = {
   cursor?: string | null;
   limit?: number;
   tags?: string[];
+  difficulties?: string[];
+  timeComplexities?: string[];
+  q?: string;
+  tagMode?: 'any' | 'all';
+  problemNumber?: number;
 };
 
 // One page of posts, newest first. Call again with nextCursor for more.
 export async function getPosts(
   feed: FeedType = 'main',
-  { cursor, limit = 20, tags = [] }: GetPostsOptions = {},
+  {
+    cursor,
+    limit = 20,
+    tags = [],
+    difficulties = [],
+    timeComplexities = [],
+    q,
+    tagMode,
+    problemNumber,
+  }: GetPostsOptions = {},
 ): Promise<PostPage> {
-  // No follow routes on the backend yet, so "following" is empty for now
-  if (feed === 'following')
-    return { posts: [], nextCursor: null, hasMore: false };
-
   const params = new URLSearchParams({ limit: String(limit) });
   tags.forEach((tag) => params.append('tag', tag)); // one param per tag
+  difficulties.forEach((difficulty) => params.append('difficulty', difficulty));
+  timeComplexities.forEach((complexity) => params.append('time_complexity', complexity));
+  if (q?.trim()) params.set('q', q.trim());
+  if (tagMode) params.set('tag_mode', tagMode);
+  if (problemNumber !== undefined) params.set('problem_number', String(problemNumber));
   if (cursor) params.set('cursor', cursor);
 
+  const path = feed === 'following' ? '/posts/following' : '/posts';
   const page = await request<{
     posts: PostRow[];
     nextCursor: string | null;
     hasMore: boolean;
-  }>(`/posts?${params}`);
+  }>(`${path}?${params}`);
   return {
     posts: page.posts.map(toPost),
     nextCursor: page.nextCursor,
     hasMore: page.hasMore,
   };
+}
+
+// ---------- Tags ----------
+
+// NEW: every available problem tag (from the tags table), independent of posts.
+// Backend: GET /problems/tags -> [{ id, name }]. The search bar only needs the names.
+export async function getTags(): Promise<string[]> {
+  const tags = await request<{ id: number; name: string }[]>('/problems/tags');
+  return tags.map((tag) => tag.name);
 }
 
 // One post by id, or null if it doesn't exist (or isn't yours to see)

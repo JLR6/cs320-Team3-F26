@@ -80,6 +80,35 @@ describe('ProblemsService', () => {
     });
   });
 
+  describe('findAllTags', () => {
+    it('reads tags with the anonymous key, sorted by name, and renames the columns', async () => {
+      fetchMock.mockResolvedValueOnce(Response.json([
+        { tag_id: 2, tag_name: 'Array' },
+        { tag_id: 7, tag_name: 'Hash Table' },
+      ]));
+      await expect(service.findAllTags()).resolves.toEqual([
+        { id: 2, name: 'Array' },
+        { id: 7, name: 'Hash Table' },
+      ]);
+
+      const req = lastRequest();
+      expect(req.url.pathname).toBe('/rest/v1/tags');
+      expect(req.url.searchParams.get('select')).toBe('tag_id,tag_name');
+      expect(req.url.searchParams.get('order')).toBe('tag_name.asc');
+      expect(req.headers.get('apikey')).toBe('test-anon-key');
+    });
+
+    it('returns an empty list when there are no tags', async () => {
+      fetchMock.mockResolvedValueOnce(Response.json([]));
+      await expect(service.findAllTags()).resolves.toEqual([]);
+    });
+
+    it('hides database details when the query fails', async () => {
+      fetchMock.mockResolvedValueOnce(dbError('XX000', 500));
+      await expect(service.findAllTags()).rejects.toThrow(InternalServerErrorException);
+    });
+  });
+
   describe('findOne', () => {
     it('returns the problem', async () => {
       fetchMock.mockResolvedValueOnce(Response.json([twoSum]));
