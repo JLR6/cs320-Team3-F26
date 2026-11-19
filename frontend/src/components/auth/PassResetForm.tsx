@@ -4,7 +4,7 @@ import React, { useState } from 'react';
 import { AppCardInput, AppCardButton } from '@/components/app-card';
 import { Loader2 } from 'lucide-react';
 
-export function UpdatePassword() {
+export default function UpdatePassword() {
   // Set up the basic states for updating a password
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
