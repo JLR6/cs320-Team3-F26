@@ -9,6 +9,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../src/integrations/supabase/supabase.service';
+import { LeetCodeService } from '../problems/leetcode.service';
+import { ProblemsService } from '../problems/problems.service';
 import type { CreatePostDto, UpdatePostDto } from './dto/post-content.dto';
 import { encodePostCursor, type PostPagination } from './dto/post-pagination.dto';
 
@@ -20,39 +22,102 @@ export interface PostRecord {
   post_description: string | null;
   user_solution: string | null;
   user_time_complexity: string | null;
+  user_space_complexity: string | null;
+  solution_url: string | null;
   created_at: string | null;
   updated_at: string | null;
 }
 
+export interface PostAuthor {
+  id: string;
+  username: string | null;
+  profilePicture: string | null;
+}
+
+export interface PostComment {
+  id: string;
+  postId: string;
+  author: PostAuthor;
+  text: string;
+  likeCount: number;
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
+export interface PostResponse extends PostRecord {
+  id: string;
+  author: PostAuthor;
+  problemNumber: number;
+  problemName: string | null;
+  difficulty: string | null;
+  problemLink: string | null;
+  description: string | null;
+  tags: string[];
+  timeComplexity: string | null;
+  spaceComplexity: string | null;
+  solutionUrl: string | null;
+  likeCount: number;
+  likedByMe: boolean;
+  comments: PostComment[];
+  createdAt: string | null;
+  updatedAt: string | null;
+}
+
 export interface PostsPage {
-  posts: PostRecord[];
+  posts: PostResponse[];
   nextCursor: string | null;
   hasMore: boolean;
 }
 
 @Injectable()
 export class PostsService {
-  constructor(@Inject(SupabaseService) private readonly supabase: SupabaseService) {}
+  constructor(
+    @Inject(SupabaseService) private readonly supabase: SupabaseService,
+    @Inject(ProblemsService) private readonly problems: ProblemsService,
+    @Inject(LeetCodeService) private readonly leetcode: LeetCodeService,
+  ) {}
 
-  async findAll(
+  findAll(
     accessToken: string,
     tags: string[] = [],
+    pagination?: PostPagination,
+  ): Promise<PostsPage> {
+    return this.findPage('post_details', accessToken, tags, pagination);
+  }
+
+  findFollowing(
+    accessToken: string,
+    tags: string[] = [],
+    pagination?: PostPagination,
+  ): Promise<PostsPage> {
+    return this.findPage('following_post_details', accessToken, tags, pagination);
+  }
+
+  private async findPage(
+    source: 'post_details' | 'following_post_details',
+    accessToken: string,
+    tags: string[],
     { cursor, limit }: PostPagination = { limit: 50 },
   ): Promise<PostsPage> {
     const client = this.supabase.forUser(accessToken);
 
-    // Join problems only when filtering by their tags.
+    // PostgREST follows the problem_tags junction. The separate filter embed
+    // lets us return every tag on each matching problem.
     let query = client
-      .from('posts')
+      .from(source)
       .select(
         tags.length > 0
-          ? '*, problems!inner(problem_tags)'
+          ? '*, problems!inner(tags(tag_name), matching_tags:tags!inner())'
           : '*',
       );
 
-    // Return posts whose problem matches ANY selected tag.
     if (tags.length > 0) {
-      query = query.overlaps('problems.problem_tags', tags);
+      // Quote each name for PostgREST's in-list grammar, including literal quotes and backslashes.
+      const tagNames = tags.map(tag => {
+        const escaped = tag.replace(/["\\]/g, character => `\\${character}`);
+        return `"${escaped}"`;
+      });
+      query = query.filter('problems.matching_tags.tag_name', 'in', `(${tagNames.join(',')})`);
     }
 
     if (cursor) {
@@ -71,7 +136,7 @@ export class PostsService {
       .order('post_id', { ascending: false })
       // One extra row tells us whether another page exists without a count query.
       .limit(limit + 1)
-      .returns<PostRecord[]>();
+      .returns<(PostResponse & { problems?: { tags: { tag_name: string }[] } })[]>();
 
     if (error) {
       this.fail(status, 'Unable to fetch posts');
@@ -79,7 +144,10 @@ export class PostsService {
 
     const rows = data ?? [];
     const hasMore = rows.length > limit;
-    const posts = rows.slice(0, limit);
+    const posts = rows.slice(0, limit).map(({ problems, ...post }) => {
+      if (!problems) return post;
+      return { ...post, problems: { problem_tags: problems.tags.map(tag => tag.tag_name) } };
+    });
     const lastPost = posts.at(-1);
 
     return {
@@ -89,30 +157,50 @@ export class PostsService {
     };
   }
 
-  async findOne(accessToken: string, id: string): Promise<PostRecord> {
+  async findOne(accessToken: string, id: string): Promise<PostResponse> {
     const { data, error, status } = await this.supabase.forUser(accessToken)
-      .from('posts').select('*').eq('post_id', id).maybeSingle<PostRecord>();
+      .from('post_details').select('*').eq('post_id', id).maybeSingle<PostResponse>();
 
     if (error) this.fail(status, 'Unable to fetch post');
     if (!data) throw new NotFoundException('Post not found');
     return data;
   }
 
-  async create(accessToken: string, input: CreatePostDto): Promise<PostRecord> {
+  async create(accessToken: string, input: CreatePostDto): Promise<PostResponse> {
     const client = this.supabase.forUser(accessToken);
     const { data: auth, error: authError } = await client.auth.getUser(accessToken);
     if (authError || !auth.user?.id) throw new UnauthorizedException('Invalid or expired access token');
 
+    // Posts reference problems through a foreign key. Check our database first
+    // and import a missing problem from LeetCode only when a slug was provided.
+    const { problem_slug, ...postFields } = input;
+    try {
+      await this.problems.findOne(input.problem_number);
+    } catch (error) {
+      if (!(error instanceof NotFoundException)) throw error;
+      if (!problem_slug) {
+        throw new BadRequestException('Problem not found. Include problem_slug to import it from LeetCode');
+      }
+
+      const problem = await this.leetcode.fetchProblemBySlug(problem_slug);
+      // Never save a different problem than the number in the user's post.
+      if (problem.problem_number !== input.problem_number) {
+        throw new BadRequestException('problem_slug does not match problem_number');
+      }
+      await this.problems.findOrCreate(problem);
+    }
+
+    // problem_slug is request-only metadata; it must not be inserted into posts.
     const { data, error, status } = await client
-      .from('posts').insert({ ...input, user_id: auth.user.id })
+      .from('posts').insert({ ...postFields, user_id: auth.user.id })
       .select('*').single<PostRecord>();
 
     if (error?.code === '23503') throw new BadRequestException('Referenced problem does not exist');
     if (error) this.fail(status, 'Unable to create post');
-    return data;
+    return this.findOne(accessToken, data.post_id);
   }
 
-  async update(accessToken: string, id: string, input: UpdatePostDto): Promise<PostRecord> {
+  async update(accessToken: string, id: string, input: UpdatePostDto): Promise<PostResponse> {
     const { data, error, status } = await this.supabase.forUser(accessToken)
       .from('posts').update({ ...input, updated_at: new Date().toISOString() }).eq('post_id', id)
       .select('*').maybeSingle<PostRecord>();
@@ -120,7 +208,7 @@ export class PostsService {
     if (error?.code === '23503') throw new BadRequestException('Referenced problem does not exist');
     if (error) this.fail(status, 'Unable to update post');
     if (!data) throw new NotFoundException('Post not found or not editable');
-    return data;
+    return this.findOne(accessToken, data.post_id);
   }
 
   async remove(accessToken: string, id: string): Promise<void> {
@@ -135,6 +223,7 @@ export class PostsService {
   private fail(status: number, message: string): never {
     if (status === 401) throw new UnauthorizedException('Invalid or expired access token');
     if (status === 403) throw new ForbiddenException('Operation not permitted');
+    
     throw new InternalServerErrorException(message);
   }
 }
