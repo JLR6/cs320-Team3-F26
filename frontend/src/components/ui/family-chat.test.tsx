@@ -1,6 +1,7 @@
 import { render, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { FamilyChat } from './family-chat'
+import type { ComponentProps } from 'react'
 
 const m = vi.hoisted(() => {
     const orderMock = vi.fn()
@@ -8,7 +9,7 @@ const m = vi.hoisted(() => {
     const selectMock = vi.fn(() => ({ eq: eqMock }))
     const upsertMock = vi.fn()
     const fromMock = vi.fn(() => ({ select: selectMock, upsert: upsertMock }))
-    return { upsertMock, fromMock, selectMock, eqMock, orderMock, chat: { props: null as any }}
+    return { upsertMock, fromMock, selectMock, eqMock, orderMock, chat: { props: null as ComponentProps<typeof FamilyChat> | null }}
 })
 
 vi.mock('@/lib/supabase/client', () => ({
@@ -18,7 +19,7 @@ vi.mock('@/lib/supabase/client', () => ({
 }))
 
 vi.mock('@/components/realtime-chat', () => ({
-    RealtimeChat: (props: any) => {
+    RealtimeChat: (props: ComponentProps<typeof FamilyChat>) => {
         m.chat.props = props
         return <div data-testid="realtime-chat" />
     },

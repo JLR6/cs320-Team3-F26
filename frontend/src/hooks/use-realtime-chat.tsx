@@ -39,9 +39,10 @@ export function useRealtimeChat({ roomName, username }: UseRealtimeChatProps) {
         } else {
           setIsConnected(false)
         }
+        setChannel(newChannel) // Update the channel state when the subscription status changes
       })
 
-    setChannel(newChannel)
+      // Set channel was here
 
     return () => {
       supabase.removeChannel(newChannel)
