@@ -176,13 +176,21 @@ describe('getPosts', () => {
     expect(params.get('limit')).toBe('5');
   });
 
-  it('returns an empty following feed without asking the backend', async () => {
-    const page = await api.getPosts('following');
+  it('sends every selected filter and requests the following endpoint', async () => {
+    reply(200, { posts: [], nextCursor: null, hasMore: false });
+    await api.getPosts('following', {
+      tags: ['Array', 'Hash Table'],
+      difficulties: ['Easy', 'Medium'],
+      timeComplexities: ['O(n)'],
+      q: 'hash map',
+    });
 
-    // verify an empty following feed is returned
-    expect(page).toEqual({ posts: [], nextCursor: null, hasMore: false });
-    // verify no request is sent for an empty following feed
-    expect(fetchMock).not.toHaveBeenCalled();
+    const url = new URL(String(fetchMock.mock.calls[0][0]), 'http://x');
+    expect(url.pathname).toBe('/posts/following');
+    expect(url.searchParams.getAll('tag')).toEqual(['Array', 'Hash Table']);
+    expect(url.searchParams.getAll('difficulty')).toEqual(['Easy', 'Medium']);
+    expect(url.searchParams.getAll('time_complexity')).toEqual(['O(n)']);
+    expect(url.searchParams.get('q')).toBe('hash map');
   });
 });
 

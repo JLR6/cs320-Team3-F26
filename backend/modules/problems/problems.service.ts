@@ -20,6 +20,12 @@ export interface ProblemRecord {
   updated_at: string | null;
 }
 
+// NEW: what GET /problems/tags sends to the frontend.
+export interface TagResponse {
+  id: number;
+  name: string;
+}
+
 const UNIQUE_VIOLATION = '23505';
 const FOREIGN_KEY_VIOLATION = '23503';
 
@@ -41,6 +47,19 @@ export class ProblemsService {
 
     if (error) throw new InternalServerErrorException('Unable to fetch problems');
     return data;
+  }
+
+  // NEW: every tag from the tags table (not tied to any post), A to Z.
+  // Used by the search bar to list the tags a user can filter posts by.
+  async findAllTags(): Promise<TagResponse[]> {
+    const { data, error } = await this.supabase.anonymous()
+      .from('tags')
+      .select('tag_id, tag_name')
+      .order('tag_name', { ascending: true })
+      .returns<{ tag_id: number; tag_name: string }[]>();
+
+    if (error) throw new InternalServerErrorException('Unable to fetch tags');
+    return (data ?? []).map(({ tag_id, tag_name }) => ({ id: tag_id, name: tag_name }));
   }
 
   async findOne(problemNumber: number): Promise<ProblemRecord> {
