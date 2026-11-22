@@ -45,7 +45,7 @@ type RealtimeChatProps = {
   roomName: string;
   username: string;
   onMessage: (messages: ChatMessage[]) => void | Promise<void>;
-}
+};
 
 const db = {
   id: '1',
@@ -111,7 +111,6 @@ describe('FamilyChat', () => {
     expect(m.upsertMock).not.toHaveBeenCalled();
   });
 });
-
 
 // Helper func to check chat props
 function getChatProps() {
