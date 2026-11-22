@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { PasswordInput } from './PasswordInput';
 
 describe('PasswordInput', () => {
+  // toggles between hidden and visible
   it('toggles between hidden and visible', async () => {
     // start with the password hidden
     const user = userEvent.setup();
@@ -22,7 +23,7 @@ describe('PasswordInput', () => {
     await user.click(screen.getByRole('button', { name: 'Hide password' }));
     expect(input).toHaveAttribute('type', 'password');
   });
-
+  // does not submit the surrounding form when toggled
   it('does not submit the surrounding form when toggled', async () => {
     // track submissions from the surrounding form
     const onSubmit = vi.fn((e: React.FormEvent) => e.preventDefault());

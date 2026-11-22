@@ -34,7 +34,7 @@ describe('getSafeNext', () => {
     // verify safe paths are preserved and unsafe paths use the fallback
     expect(getSafeNext(next)).toBe(expected);
   });
-
+  // uses a custom fallback when given
   it('uses a custom fallback when given', () => {
     // verify callers can provide a different fallback path
     expect(getSafeNext('//evil.com', '/home')).toBe('/home');
@@ -65,13 +65,13 @@ describe('timeAgo', () => {
       expected.replace(' ago', '').replace(/^just now$/, 'Just now'),
     );
   });
-
+  // falls back to a date after a week, and accepts date objects
   it('falls back to a date after a week, and accepts Date objects', () => {
     const old = new Date(NOW - 10 * 60 * 60 * 24 * 1000);
     // verify date objects are accepted by the formatter
     expect(timeAgo(old)).toBe('10d');
   });
-
+  // handles empty, invalid, and future timestamps
   it('handles empty, invalid, and future timestamps', () => {
     // verify unusable timestamps use the current time label
     expect(timeAgo('')).toBe('');
@@ -93,6 +93,7 @@ describe('formatCount', () => {
 });
 
 describe('post helpers', () => {
+  // formats titles and post details
   it('formats titles and post details', () => {
     const post = makePost({
       problem: {
@@ -114,7 +115,7 @@ describe('post helpers', () => {
       'Time Complexity: O(n)',
     ]);
   });
-
+  // uses a generic title and skips missing details
   it('uses a generic title and skips missing details', () => {
     const post = makePost({
       problem: { number: 1, title: '', tags: [] },
@@ -147,7 +148,7 @@ describe('useCurrentUser', () => {
   beforeEach(() => {
     getUser.mockReset();
   });
-
+  // returns the authenticated user and falls back to a default username
   it('returns the authenticated user and falls back to a default username', async () => {
     getUser.mockResolvedValue({
       data: { user: { id: 'user1', user_metadata: {} } },
@@ -159,7 +160,7 @@ describe('useCurrentUser', () => {
       expect(result.current).toEqual({ id: 'user1', username: 'me' }),
     );
   });
-
+  // returns null when no user is authenticated
   it('returns null when no user is authenticated', async () => {
     getUser.mockResolvedValue({
       data: { user: null },
@@ -172,6 +173,7 @@ describe('useCurrentUser', () => {
 });
 
 describe('difficulty colors', () => {
+  // exports a color for every difficulty
   it('exports a color for every difficulty', () => {
     // verify difficulty colors cover every difficulty
     expect(DIFFICULTY_COLOR).toEqual({

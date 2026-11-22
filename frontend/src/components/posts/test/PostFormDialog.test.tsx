@@ -11,7 +11,7 @@ function renderDialog(onSubmit = vi.fn()) {
 }
 
 describe('PostFormDialog', () => {
-  // confirm that submission contains only post fields
+  // submits only fields that belong to the post
   it('submits only fields that belong to the post', async () => {
     const user = userEvent.setup();
     const onSubmit = renderDialog();
@@ -30,7 +30,7 @@ describe('PostFormDialog', () => {
     });
   });
 
-  // confirm that editing loads the problem number without extra details
+  // loads problem details from the problem when editing
   it('loads problem details from the problem when editing', () => {
     render(
       <PostFormDialog

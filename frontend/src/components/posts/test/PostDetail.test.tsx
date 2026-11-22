@@ -1,12 +1,11 @@
 // post detail behavior is tested here because it owns loading and navigation
-import { render, screen } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { PostDetail } from '../PostDetail';
 import * as api from '@/lib/posts/posts-api';
 import { FEED_PATH } from '@/lib/utils';
-import { makePost } from '@/lib/test-utils';
-import type { PostComment } from '@/types/post';
+import { makeComment, makePost, renderWithQuery } from '@/lib/test-utils';
 
 const push = vi.hoisted(() => vi.fn());
 const getUser = vi.hoisted(() => vi.fn());
@@ -23,13 +22,15 @@ beforeEach(() => {
   getUser.mockResolvedValue({
     data: { user: { id: 'user1', user_metadata: { username: 'alice' } } },
   });
+  vi.mocked(api.hasLiked).mockResolvedValue(false);
 });
 
 function renderDetail(id = 'p1') {
-  return render(<PostDetail id={id} />);
+  return renderWithQuery(<PostDetail id={id} />);
 }
 
 describe('PostDetail', () => {
+  // shows a safe solution link
   it('shows a safe solution link', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(
       makePost({
@@ -45,7 +46,7 @@ describe('PostDetail', () => {
       await screen.findByRole('link', { name: /View solution on LeetCode/ }),
     ).toHaveAttribute('href', 'https://leetcode.com/s/1');
   });
-
+  // hides unsafe solution links
   it('hides unsafe solution links', () => {
     vi.mocked(api.getPostById).mockResolvedValue(
       makePost({
@@ -60,7 +61,7 @@ describe('PostDetail', () => {
       screen.queryByRole('link', { name: /View solution on LeetCode/ }),
     ).toBeNull();
   });
-
+  // does not render a complexity section
   it('does not render a complexity section', () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
     renderDetail();
@@ -70,6 +71,7 @@ describe('PostDetail', () => {
 });
 
 describe('PostDetail', () => {
+  // shows loading..., then the post and a back button
   it('shows Loading..., then the post and a back button', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
     renderDetail();
@@ -82,7 +84,7 @@ describe('PostDetail', () => {
     // verify the page provides a back button
     expect(screen.getByRole('button', { name: 'Back' })).toBeInTheDocument();
   });
-
+  // shows an error when loading fails
   it('shows an error when loading fails', async () => {
     vi.mocked(api.getPostById).mockRejectedValue(new Error('x'));
     renderDetail();
@@ -90,7 +92,7 @@ describe('PostDetail', () => {
       await screen.findByText("Couldn't load this post"),
     ).toBeInTheDocument();
   });
-
+  // shows a message when the post does not exist
   it('shows a message when the post does not exist', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(null);
     renderDetail();
@@ -98,10 +100,10 @@ describe('PostDetail', () => {
       await screen.findByText("This post doesn't exist."),
     ).toBeInTheDocument();
   });
-
-  it('like updates the post', async () => {
+  // like updates the count right away and calls the backend
+  it('like updates the count right away and calls the backend', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
-    vi.mocked(api.toggleLike).mockResolvedValue(makePost({ likeCount: 4 }));
+    vi.mocked(api.setLiked).mockResolvedValue(undefined);
     renderDetail();
 
     await user.click(await screen.findByRole('button', { name: '3' }));
@@ -109,16 +111,31 @@ describe('PostDetail', () => {
     expect(
       await screen.findByRole('button', { name: '4' }),
     ).toBeInTheDocument();
+    expect(api.setLiked).toHaveBeenCalledWith('post', 'p1', true);
   });
-
-  it('adding a comment shows it in the list', async () => {
+  // puts the like back when the backend fails
+  it('puts the like back when the backend fails', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
-    vi.mocked(api.addComment).mockResolvedValue({
-      id: 'c1',
-      author: { id: 'user1', username: 'alice' },
-      content: 'Nice!',
-      createdAt: new Date().toISOString(),
-    } as PostComment);
+    vi.mocked(api.setLiked).mockRejectedValue(new Error('down'));
+    renderDetail();
+
+    await user.click(await screen.findByRole('button', { name: '3' }));
+
+    // verify the count goes back after the failed request
+    await waitFor(() => expect(api.setLiked).toHaveBeenCalled());
+    expect(
+      await screen.findByRole('button', { name: '3' }),
+    ).toBeInTheDocument();
+  });
+  // adding a comment reloads the post and shows it in the list
+  it('adding a comment reloads the post and shows it in the list', async () => {
+    // first load: no comments, after posting: the backend has the comment
+    vi.mocked(api.getPostById)
+      .mockResolvedValueOnce(makePost())
+      .mockResolvedValue(
+        makePost({ comments: [makeComment({ content: 'Nice!' })] }),
+      );
+    vi.mocked(api.addComment).mockResolvedValue(undefined);
     renderDetail();
 
     await user.type(
@@ -130,7 +147,7 @@ describe('PostDetail', () => {
     expect(await screen.findByText('Nice!')).toBeInTheDocument();
     expect(api.addComment).toHaveBeenCalledWith('p1', 'Nice!');
   });
-
+  // edit: saving from the dialog calls updatepost
   it('edit: saving from the dialog calls updatePost', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
     vi.mocked(api.updatePost).mockResolvedValue(makePost());
@@ -142,9 +159,11 @@ describe('PostDetail', () => {
     await user.click(await screen.findByRole('menuitem', { name: /edit/i }));
     await user.click(await screen.findByRole('button', { name: 'Save' }));
 
-    expect(api.updatePost).toHaveBeenCalledWith('p1', expect.anything());
+    await waitFor(() =>
+      expect(api.updatePost).toHaveBeenCalledWith('p1', expect.anything()),
+    );
   });
-
+  // delete: confirming deletes the post and returns to the feed
   it('delete: confirming deletes the post and returns to the feed', async () => {
     vi.mocked(api.getPostById).mockResolvedValue(makePost());
     vi.mocked(api.deletePost).mockResolvedValue(undefined);
@@ -157,6 +176,6 @@ describe('PostDetail', () => {
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
 
     expect(api.deletePost).toHaveBeenCalledWith('p1');
-    expect(push).toHaveBeenCalledWith(FEED_PATH);
+    await waitFor(() => expect(push).toHaveBeenCalledWith(FEED_PATH));
   });
 });
