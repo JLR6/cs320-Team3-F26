@@ -1,5 +1,3 @@
-// this code is boilerplate for TanStack which we have planned for the future
-
 'use client';
 
 import { useState } from 'react';
@@ -11,21 +9,23 @@ import { ThemeProvider } from '@/components/ThemeProvider';
 import { CreatePostProvider } from '@/components/posts/CreatePostProvider';
 
 export function Providers({ children }: { children: React.ReactNode }) {
+  // One React Query cache for the app. It wraps everything (not just the page)
+  // so the sidebar's "New Post" dialog can refresh the feed too.
   const [queryClient] = useState(() => new QueryClient());
   return (
-    <ThemeProvider>
-      <CreatePostProvider>
-        <SidebarProvider>
-          <AppSidebar />
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider>
+        <CreatePostProvider>
+          <SidebarProvider>
+            <AppSidebar />
 
-          <SidebarInset>
-            <AppHeader />
-            <QueryClientProvider client={queryClient}>
+            <SidebarInset>
+              <AppHeader />
               {children}
-            </QueryClientProvider>
-          </SidebarInset>
-        </SidebarProvider>
-      </CreatePostProvider>
-    </ThemeProvider>
+            </SidebarInset>
+          </SidebarProvider>
+        </CreatePostProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
