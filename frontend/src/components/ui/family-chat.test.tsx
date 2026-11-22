@@ -1,7 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { FamilyChat } from './family-chat';
-import type { ComponentProps } from 'react';
 
 const m = vi.hoisted(() => {
   const orderMock = vi.fn();
@@ -15,7 +14,7 @@ const m = vi.hoisted(() => {
     selectMock,
     eqMock,
     orderMock,
-    chat: { props: null as ComponentProps<typeof FamilyChat> | null },
+    chat: { props: null as RealtimeChatProps | null },
   };
 });
 
@@ -26,7 +25,7 @@ vi.mock('@/lib/supabase/client', () => ({
 }));
 
 vi.mock('@/components/realtime-chat', () => ({
-  RealtimeChat: (props: ComponentProps<typeof FamilyChat>) => {
+  RealtimeChat: (props: RealtimeChatProps) => {
     m.chat.props = props;
     return <div data-testid="realtime-chat" />;
   },
@@ -38,6 +37,15 @@ const message = {
   content: 'Hello, world!',
   createdAt: new Date().toISOString(),
 };
+
+type ChatMessage = typeof message;
+
+type RealtimeChatProps = {
+  messages: ChatMessage[];
+  roomName: string;
+  username: string;
+  onMessage: (messages: ChatMessage[]) => void | Promise<void>;
+}
 
 const db = {
   id: '1',
@@ -56,28 +64,28 @@ describe('FamilyChat', () => {
     m.orderMock.mockResolvedValueOnce({ data: [db], error: null });
     render(<FamilyChat familyId="family1" username="testuser" />);
 
-    await waitFor(() => expect(m.chat.props.messages).toEqual([message]));
+    await waitFor(() => expect(getChatProps().messages).toEqual([message]));
 
     expect(m.fromMock).toHaveBeenCalledWith('family_messages');
     expect(m.selectMock).toHaveBeenCalledWith('*');
     expect(m.eqMock).toHaveBeenCalledWith('family_id', 'family1');
     expect(m.orderMock).toHaveBeenCalledWith('created_at', { ascending: true });
-    expect(m.chat.props.roomName).toBe('family-family1');
-    expect(m.chat.props.username).toBe('testuser');
+    expect(getChatProps().roomName).toBe('family-family1');
+    expect(getChatProps().username).toBe('testuser');
   });
 
   it('Handles new messages correctly', async () => {
     m.orderMock.mockResolvedValueOnce({ data: [], error: null });
     render(<FamilyChat familyId="family1" username="testuser" />);
 
-    await waitFor(() => expect(m.chat.props.messages).toEqual([]));
+    await waitFor(() => expect(getChatProps().messages).toEqual([]));
 
     const newMessages = [
       { ...message },
       { ...message, id: '2', user: { name: 'otheruser' } },
     ];
 
-    await m.chat.props.onMessage(newMessages);
+    await getChatProps().onMessage(newMessages);
 
     expect(m.upsertMock).toHaveBeenCalledWith([
       {
@@ -94,12 +102,21 @@ describe('FamilyChat', () => {
     m.orderMock.mockResolvedValueOnce({ data: [], error: null });
     render(<FamilyChat familyId="family1" username="testuser" />);
 
-    await waitFor(() => expect(m.chat.props.messages).toEqual([]));
+    await waitFor(() => expect(getChatProps().messages).toEqual([]));
 
     const newMessages = [{ ...message, id: '2', user: { name: 'otheruser' } }];
 
-    await m.chat.props.onMessage(newMessages);
+    await getChatProps().onMessage(newMessages);
 
     expect(m.upsertMock).not.toHaveBeenCalled();
   });
 });
+
+
+// Helper func to check chat props
+function getChatProps() {
+  if (!m.chat.props) {
+    throw new Error('Chat props are not set');
+  }
+  return m.chat.props;
+}
