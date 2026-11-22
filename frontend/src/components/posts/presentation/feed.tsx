@@ -109,7 +109,6 @@ export function PostFeed() {
             {errorMessage(query.error, "Couldn't load posts")}
           </p>
         )}
-
         {posts?.length === 0 && (
           <p className="py-10 text-center text-sm text-muted-foreground">
             {feed === 'following'
@@ -117,7 +116,6 @@ export function PostFeed() {
               : 'No posts yet.'}
           </p>
         )}
-
         {posts?.map((post) => (
           <PostCard
             key={post.id}
@@ -129,7 +127,6 @@ export function PostFeed() {
             onDelete={() => setDeleting(post)}
           />
         ))}
-
         {posts &&
           posts.length > 0 &&
           (query.hasNextPage ? (
@@ -147,7 +144,6 @@ export function PostFeed() {
               You&apos;ve reached the end of your feed
             </p>
           ))}
-
         <PostFormDialog
           open={creating}
           onOpenChange={setCreating}
