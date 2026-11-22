@@ -81,6 +81,25 @@ export class PostsController {
     );
   }
 
+  // A single user's posts, e.g. for their profile page.
+  // Declared before ':id' so "user" is never treated as a post ID.
+  @Get('user/:userId')
+  findByUser(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Headers('authorization') authorization?: string,
+    @Query('tag') tag?: unknown,
+    @Query('cursor') cursor?: unknown,
+    @Query('limit') limit?: unknown,
+  ) {
+    const tags = this.parseTags(tag);
+    return this.postsService.findByUser(
+      this.accessToken(authorization),
+      userId,
+      tags,
+      parsePostPagination(cursor, limit),
+    );
+  }
+
   @Get(':id')
   findOne(
     @Param('id', new ParseUUIDPipe()) id: string,

@@ -9,11 +9,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { SupabaseService } from '../../src/integrations/supabase/supabase.service';
+import { POST_AUDIO_BUCKET } from '../post-audio/post-audio.service';
 import { LeetCodeService } from '../problems/leetcode.service';
 import { ProblemsService } from '../problems/problems.service';
 import type { CreatePostDto, UpdatePostDto } from './dto/post-content.dto';
 import { encodePostCursor, type PostPagination } from './dto/post-pagination.dto';
-import type { PostFilters } from './dto/post-filters.dto'; // NEW
+import type { PostFilters } from './dto/post-filters.dto';
 
 export interface PostRecord {
   post_id: string;
@@ -70,7 +71,7 @@ export interface PostsPage {
   hasMore: boolean;
 }
 
-// NEW: quote a value for PostgREST's in-list and array grammar,
+// quote a value for PostgREST's in-list and array grammar,
 // escaping literal quotes and backslashes (same rule the tag filter uses).
 const quoteValue = (value: string) => `"${value.replace(/["\\]/g, character => `\\${character}`)}"`;
 
@@ -82,36 +83,33 @@ export class PostsService {
     @Inject(LeetCodeService) private readonly leetcode: LeetCodeService,
   ) {}
 
-  // findAll(
-  //   accessToken: string,
-  //   tags: string[] = [],
-  //   pagination?: PostPagination,
-  // ): Promise<PostsPage> {
-  //   return this.findPage('post_details', accessToken, tags, pagination);
-  // }
   findAll(
     accessToken: string,
     tags: string[] = [],
     pagination?: PostPagination,
-    filters: PostFilters = {}, // NEW: difficulty, time complexity, keyword, tag mode
+    filters: PostFilters = {}, // difficulty, time complexity, keyword, tag mode
   ): Promise<PostsPage> {
     return this.findPage('post_details', accessToken, tags, pagination, filters);
   }
 
-  // findFollowing(
-  //   accessToken: string,
-  //   tags: string[] = [],
-  //   pagination?: PostPagination,
-  // ): Promise<PostsPage> {
-  //   return this.findPage('following_post_details', accessToken, tags, pagination);
-  // }
   findFollowing(
     accessToken: string,
     tags: string[] = [],
     pagination?: PostPagination,
-    filters: PostFilters = {}, // NEW
+    filters: PostFilters = {},
   ): Promise<PostsPage> {
     return this.findPage('following_post_details', accessToken, tags, pagination, filters);
+  }
+
+  // One user's posts (for their profile page), newest first, with the same
+  // tag filter and cursor pagination as the main feed.
+  findByUser(
+    accessToken: string,
+    userId: string,
+    tags: string[] = [],
+    pagination?: PostPagination,
+  ): Promise<PostsPage> {
+    return this.findPage('post_details', accessToken, tags, pagination, {}, userId);
   }
 
   private async findPage(
@@ -119,11 +117,12 @@ export class PostsService {
     accessToken: string,
     tags: string[],
     { cursor, limit }: PostPagination = { limit: 50 },
-    filters: PostFilters = {}, // NEW
+    filters: PostFilters = {},
+    authorId?: string, // only return posts written by this user
   ): Promise<PostsPage> {
     const client = this.supabase.forUser(accessToken);
 
-    // NEW: "all" needs every selected tag on the problem, so it filters the view's own
+    // "all" needs every selected tag on the problem, so it filters the view's own
     // `tags` array (below). "any" (the default) keeps the original join untouched.
     const matchAllTags = tags.length > 0 && filters.tagMode === 'all';
     const joinTags = tags.length > 0 && !matchAllTags;
@@ -133,15 +132,15 @@ export class PostsService {
     let query = client
       .from(source)
       .select(
-        // tags.length > 0 // (old) the join is now only for "any" matching
         joinTags
           ? '*, problems!inner(tags(tag_name), matching_tags:tags!inner())'
           : '*',
       );
 
-    // if (tags.length > 0) { // (old)
+   if (authorId) {
+      query = query.eq('user_id', authorId);
+    }
     if (joinTags) {
-      // Quote each name for PostgREST's in-list grammar, including literal quotes and backslashes.
       const tagNames = tags.map(tag => {
         const escaped = tag.replace(/["\\]/g, character => `\\${character}`);
         return `"${escaped}"`;
@@ -149,7 +148,7 @@ export class PostsService {
       query = query.filter('problems.matching_tags.tag_name', 'in', `(${tagNames.join(',')})`);
     }
 
-    // ---- NEW filters. They read columns of the post_details view, so they also work
+    // filters. They read columns of the post_details view, so they also work
     // for the following feed. Different filters combine with AND.
 
     // Every selected tag (AND). post_details.tags lists all of the problem's tags;
@@ -274,12 +273,20 @@ export class PostsService {
   }
 
   async remove(accessToken: string, id: string): Promise<void> {
-    const { data, error, status } = await this.supabase.forUser(accessToken)
-      .from('posts').delete().eq('post_id', id).select('post_id').maybeSingle<{ post_id: string }>();
+    const client = this.supabase.forUser(accessToken);
+    const { data, error, status } = await client
+      .from('posts').delete().eq('post_id', id)
+      .select('post_id, audio_path').maybeSingle<{ post_id: string; audio_path?: string | null }>();
 
     if (error?.code === '23503') throw new ConflictException('Post has dependent likes or comments');
     if (error) this.fail(status, 'Unable to delete post');
     if (!data) throw new NotFoundException('Post not found or not editable');
+
+    // Delete the post's audio recording too, so the file isn't left in storage.
+    // Best-effort: the post is already gone, so a failure here only leaves an unused file.
+    if (data.audio_path) {
+      await client.storage.from(POST_AUDIO_BUCKET).remove([data.audio_path]);
+    }
   }
 
   private fail(status: number, message: string): never {
