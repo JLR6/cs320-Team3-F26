@@ -61,7 +61,6 @@ describe('UpdatePassword', () => {
     );
     expect(updateUser).not.toHaveBeenCalled();
   });
-
   it('succeeds when the passwords match', async () => {
     updateUser.mockResolvedValue({ error: null });
 
@@ -77,7 +76,6 @@ describe('UpdatePassword', () => {
       password: 'matching-password',
     });
   });
-
   it('shows an error for a weak password', async () => {
     updateUser.mockResolvedValue({
       error: { code: 'weak_password', message: 'Password is too weak' },

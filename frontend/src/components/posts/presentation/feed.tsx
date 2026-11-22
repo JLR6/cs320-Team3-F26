@@ -7,8 +7,7 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errorMessage } from '@/lib/utils';
 import { useCurrentUser } from '@/lib/client-utils';
 import { useFeed, usePostActions, usePostLike } from '@/hooks/use-posts';
-import type { FeedType } from '@/types/post';
-import type { Post, PostInput } from '@/types/post';
+import type { FeedType, Post, PostInput } from '@/types/post';
 import { DeletePostDialog } from '../DeletePostDialog';
 import { PostCard } from '../PostCard';
 import { PostFormDialog } from '../PostFormDialog';
@@ -35,20 +34,17 @@ export function PostFeed() {
   const [editing, setEditing] = useState<Post | null>(null);
   const [deleting, setDeleting] = useState<Post | null>(null);
 
-  // React Query handles loading, errors, caching and the "load more" cursor
   const query = useFeed(feed, filters);
   const posts = query.data?.pages.flatMap((page) => page.posts);
   const { create, update, remove } = usePostActions();
   const like = usePostLike();
 
-  // Load the next page
   function loadMore() {
     query
       .fetchNextPage({ throwOnError: true })
       .catch((e) => toast.error(errorMessage(e, "Couldn't load more posts")));
   }
 
-  // The form dialog shows errors, so these let errors pass through
   async function handleCreate(input: PostInput) {
     await create.mutateAsync(input);
     toast.success('Posted!');
@@ -159,13 +155,13 @@ export function PostFeed() {
         />
         <PostFormDialog
           open={!!editing}
-          onOpenChange={(o) => !o && setEditing(null)}
+          onOpenChange={(open) => !open && setEditing(null)}
           post={editing ?? undefined}
           onSubmit={handleEdit}
         />
         <DeletePostDialog
           open={!!deleting}
-          onOpenChange={(o) => !o && setDeleting(null)}
+          onOpenChange={(open) => !open && setDeleting(null)}
           onConfirm={handleDelete}
         />
       </div>
