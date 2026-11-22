@@ -17,7 +17,9 @@ export type PostComment = {
   postId: string;
   author: PostAuthor;
   content: string;
+  likeCount: number;
   createdAt: string;
+  updatedAt?: string; // differs from createdAt once edited
 };
 
 export type Post = {

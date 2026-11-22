@@ -32,7 +32,7 @@ async function submitValid(user: User) {
 describe('LoginForm', () => {
   // reset shared mocks before every test
   beforeEach(() => vi.clearAllMocks());
-
+  // shows errors and does not call supabase when the form is empty
   it('shows errors and does not call Supabase when the form is empty', async () => {
     const user = userEvent.setup();
     render(<LoginForm next="/dashboard" />);
@@ -44,7 +44,7 @@ describe('LoginForm', () => {
     expect(screen.getByText('Enter your password')).toBeInTheDocument();
     expect(signInWithPassword).not.toHaveBeenCalled();
   });
-
+  // logs in and goes to the next path
   it('logs in and goes to the next path', async () => {
     // simulate a successful login response
     signInWithPassword.mockResolvedValue({ error: null });
@@ -59,7 +59,7 @@ describe('LoginForm', () => {
       password: 'password123',
     });
   });
-
+  // shows one vague message for wrong credentials
   it('shows one vague message for wrong credentials', async () => {
     // simulate invalid login details
     signInWithPassword.mockResolvedValue({
@@ -74,7 +74,7 @@ describe('LoginForm', () => {
     );
     expect(replace).not.toHaveBeenCalled();
   });
-
+  // shows a generic message for other supabase errors
   it('shows a generic message for other Supabase errors', async () => {
     // simulate an unexpected authentication error
     signInWithPassword.mockResolvedValue({
@@ -90,7 +90,7 @@ describe('LoginForm', () => {
       ),
     );
   });
-
+  // handles a network failure
   it('handles a network failure', async () => {
     // simulate a failed network request
     signInWithPassword.mockRejectedValue(new Error('network'));
@@ -104,7 +104,7 @@ describe('LoginForm', () => {
       ),
     );
   });
-
+  // disables the button while logging in
   it('disables the button while logging in', async () => {
     // keep the request pending while checking the loading state
     let finish!: (value: unknown) => void;

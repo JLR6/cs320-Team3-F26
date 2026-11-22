@@ -43,7 +43,7 @@ describe('UpdatePassword', () => {
     expect(screen.getByLabelText('New Password (Repeat)')).toHaveValue('');
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
-
+  // shows an error when the passwords do not match
   it('shows an error when the passwords do not match', async () => {
     const user = userEvent.setup();
     render(<UpdatePassword />);

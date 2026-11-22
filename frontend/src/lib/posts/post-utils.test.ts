@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isHttpUrl, isLeetCodeUrl, parseTags } from './post-utils';
 
 describe('parseTags', () => {
+  // splits on spaces/commas, strips #, drops blanks and case-insensitive repeats
   it('splits on spaces/commas, strips #, drops blanks and case-insensitive repeats', () => {
     expect(parseTags('bfs, #HashTable  dp BFS #')).toEqual([
       'bfs',
@@ -9,7 +10,7 @@ describe('parseTags', () => {
       'dp',
     ]);
   });
-
+  // returns an empty list for empty input
   it('returns an empty list for empty input', () => {
     expect(parseTags('')).toEqual([]);
   });
