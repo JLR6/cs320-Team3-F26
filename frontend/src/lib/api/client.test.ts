@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const { getSession } = vi.hoisted(() => ({ getSession: vi.fn() }));
-// mock Supabase auth so tests can control the current session
+// mock supabase auth so tests can control the current session
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({ auth: { getSession } }),
 }));
@@ -17,7 +17,7 @@ const ok = (body: unknown, status = 200) => ({
 });
 
 describe('apiFetch', () => {
-  // reset mocks and provide the default authenticated API setup for each test
+  // reset mocks and provide the default authenticated api setup for each test
   beforeEach(() => {
     vi.clearAllMocks();
     vi.stubGlobal('fetch', fetchMock);
@@ -28,7 +28,7 @@ describe('apiFetch', () => {
     fetchMock.mockResolvedValue(ok({ a: 1 }));
   });
 
-  // authenticated requests should use the configured api url and bearer token
+  // calls the api base url and sends the bearer token
   it('calls the API base url and sends the bearer token', async () => {
     expect(await apiFetch('/users/user1')).toEqual({ a: 1 });
 
@@ -37,14 +37,14 @@ describe('apiFetch', () => {
     expect(init.headers.get('Authorization')).toBe('Bearer tok');
   });
 
-  // logged-out requests should not include an authorization header
+  // sends no authorization header when logged out
   it('sends no Authorization header when logged out', async () => {
     getSession.mockResolvedValue({ data: { session: null } });
     await apiFetch('/users/user1');
     expect(fetchMock.mock.calls[0][1].headers.has('Authorization')).toBe(false);
   });
 
-  // JSON bodies need a content type while FormData bodies need the browser boundary
+  // sets a json content type only for string bodies
   it('sets a JSON content type only for string bodies', async () => {
     await apiFetch('/x', { method: 'PATCH', body: '{"a":1}' });
     expect(fetchMock.mock.calls[0][1].headers.get('Content-Type')).toBe(
@@ -56,7 +56,7 @@ describe('apiFetch', () => {
     expect(fetchMock.mock.calls[1][1].headers.has('Content-Type')).toBe(false);
   });
 
-  // failed responses should expose their status and server-provided message
+  // throws an apierror with the status and body on failure
   it('throws an ApiError with the status and body on failure', async () => {
     fetchMock.mockResolvedValue({
       ok: false,
@@ -69,7 +69,31 @@ describe('apiFetch', () => {
     expect(error).toMatchObject({ status: 409, message: 'username taken' });
   });
 
-  // successful no-content responses should resolve without a value
+  // uses the message from a nest json error
+  it('uses the message from a Nest JSON error', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 404,
+      text: async () =>
+        JSON.stringify({ message: 'Comment not found', statusCode: 404 }),
+    });
+    expect(await apiFetch('/x').catch((e) => e)).toMatchObject({
+      status: 404,
+      message: 'Comment not found',
+    });
+
+    // validation errors come back as a list
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 400,
+      text: async () => JSON.stringify({ message: ['a is bad', 'b is bad'] }),
+    });
+    expect(await apiFetch('/x').catch((e) => e)).toMatchObject({
+      message: 'a is bad, b is bad',
+    });
+  });
+
+  // returns undefined for a 204 response
   it('returns undefined for a 204 response', async () => {
     fetchMock.mockResolvedValue(ok(null, 204));
     expect(await apiFetch('/x', { method: 'DELETE' })).toBeUndefined();

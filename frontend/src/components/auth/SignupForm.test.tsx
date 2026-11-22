@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { toast } from 'sonner';
 import { SignupForm } from './SignupForm';
 
-// Create independent mock objects to manipulate inside individual tests
+// create independent mock objects for each test
 const { signUp, replace, maybeSingleMock, fromMock } = vi.hoisted(() => {
   const maybeSingleMock = vi.fn();
   const eqMock = vi.fn(() => ({ maybeSingle: maybeSingleMock }));
@@ -21,7 +21,7 @@ const { signUp, replace, maybeSingleMock, fromMock } = vi.hoisted(() => {
 
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
-// Mock the supabase client to simulate our fluent chainable query structure
+// mock the supabase client and its chainable query structure
 vi.mock('@/lib/supabase/client', () => ({
   createClient: () => ({
     auth: { signUp },
@@ -50,11 +50,11 @@ async function submit(user: ReturnType<typeof userEvent.setup>) {
 describe('SignupForm', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Default the email check to return null, meaning the email is perfectly available
+    // start with an available email
     maybeSingleMock.mockResolvedValue({ data: null, error: null });
   });
 
-  // Invalid email addresses are rejected when the field loses focus.
+  // shows an email error after the field is blurred
   it('shows an email error after the field is blurred', async () => {
     const user = userEvent.setup();
     render(<SignupForm />);
@@ -65,9 +65,9 @@ describe('SignupForm', () => {
     ).toBeInTheDocument();
   });
 
-  // Existing accounts display an inline email error and do not redirect.
-  it('shows an error under email when the account already exists', async () => {
-    // Simulate finding a record during the frontend pre-check step
+  // shows an email error for an existing account
+  it('shows an email error for an existing account', async () => {
+    // simulate the frontend email check finding a record
     maybeSingleMock.mockResolvedValue({
       data: { email: 'alex@example.com' },
       error: null,
@@ -84,7 +84,7 @@ describe('SignupForm', () => {
     expect(replace).not.toHaveBeenCalled();
   });
 
-  // The confirmation field must match the password field.
+  // shows a mismatch error on the confirm field
   it('shows a mismatch error on the confirm field', async () => {
     const user = userEvent.setup();
     render(<SignupForm />);
@@ -98,10 +98,9 @@ describe('SignupForm', () => {
     ).toBeInTheDocument();
   });
 
-  // Taken usernames prevent signup from being submitted.
-  // UPDATE: This test now mirrors the email block logic since the code was migrated from checking usernames to email
-  it('shows an error under email when it is taken, without calling signUp', async () => {
-    // Mock the chain to return data instead of null, signaling the address is already registered
+  // does not call signup for a taken email
+  it('does not call signUp for a taken email', async () => {
+    // return a record to mark the address as registered
     maybeSingleMock.mockResolvedValue({
       data: { email: 'alex@example.com' },
       error: null,
@@ -116,7 +115,7 @@ describe('SignupForm', () => {
     expect(signUp).not.toHaveBeenCalled();
   });
 
-  // Successful signup redirects users to the feed.
+  // redirects when signup returns a session
   it('redirects when signUp returns a session', async () => {
     signUp.mockResolvedValue({
       data: { user: { identities: [{}] }, session: {} },
@@ -129,7 +128,7 @@ describe('SignupForm', () => {
     await waitFor(() => expect(replace).toHaveBeenCalledWith('/feed'));
   });
 
-  // Supabase weak-password errors are shown below the password field.
+  // shows a weak password error under the password field
   it('shows a weak password error under the password field', async () => {
     signUp.mockResolvedValue({
       data: { user: null, session: null },
@@ -143,7 +142,7 @@ describe('SignupForm', () => {
     expect(await screen.findByText('Password is too weak')).toBeInTheDocument();
   });
 
-  // Unexpected signup failures show a generic error toast.
+  // shows a generic toast for other signup errors
   it('shows a generic toast for other signup errors', async () => {
     signUp.mockResolvedValue({
       data: { user: null, session: null },
@@ -160,10 +159,61 @@ describe('SignupForm', () => {
       ),
     );
   });
+  // shows a rate limit toast when email delivery is limited
+  it('shows a rate limit toast when email delivery is limited', async () => {
+    signUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: {
+        code: 'over_email_send_rate_limit',
+        message: 'slow down',
+      },
+    });
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await submit(user);
 
-  // Username-check failures stop signup and show an error toast.
-  // UPDATE: Updated the error copy match to look for "email availability"
-  it('stops and shows a toast when the email check fails', async () => {
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith(
+        'Too many attempts. Please wait a bit and try again.',
+      ),
+    );
+  });
+  // shows the duplicate email error from the signup response
+  it('shows the duplicate email error from the signup response', async () => {
+    signUp.mockResolvedValue({
+      data: { user: null, session: null },
+      error: { code: 'email_exists', message: 'already registered' },
+    });
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await submit(user);
+
+    expect(
+      await screen.findByText('An account with this email already exists'),
+    ).toBeInTheDocument();
+  });
+  // shows a confirmation message when signup needs email confirmation
+  it('shows a confirmation message when signup needs email confirmation', async () => {
+    signUp.mockResolvedValue({
+      data: { user: { identities: [{}] }, session: null },
+      error: null,
+    });
+    const user = userEvent.setup();
+    render(<SignupForm />);
+    await fillValid(user);
+    await submit(user);
+
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith(
+        'Account created! Check your email to confirm your account.',
+      ),
+    );
+  });
+
+  // stops when the email check fails
+  it('stops when the email check fails', async () => {
     maybeSingleMock.mockResolvedValue({
       data: null,
       error: { message: 'down' },
@@ -180,7 +230,7 @@ describe('SignupForm', () => {
     );
     expect(signUp).not.toHaveBeenCalled();
   });
-
+  // shows a generic toast when the request throws
   it('shows a generic toast when the request throws', async () => {
     maybeSingleMock.mockRejectedValue(new Error('network'));
     const user = userEvent.setup();
@@ -194,7 +244,7 @@ describe('SignupForm', () => {
       ),
     );
   });
-
+  // sends the leetcode username when it is provided
   it('sends the LeetCode username when it is provided', async () => {
     signUp.mockResolvedValue({
       data: { user: { identities: [{}] }, session: {} },

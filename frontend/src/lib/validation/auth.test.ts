@@ -11,6 +11,7 @@ const valid = {
 };
 
 describe('email validation', () => {
+  // rejects an invalid email
   it('rejects an invalid email', () => {
     // spread operator on valid and replace with email here
     expect(signupSchema.safeParse({ ...valid, email: 'nope' }).success).toBe(
@@ -20,6 +21,7 @@ describe('email validation', () => {
 });
 
 describe('username validation', () => {
+  // accepts a valid username
   it('accepts a valid username', () => {
     expect(
       signupSchema.safeParse({ ...valid, username: 'valid_username' }).success,
@@ -28,12 +30,13 @@ describe('username validation', () => {
       signupSchema.safeParse({ ...valid, username: 'valid-username' }).success,
     ).toBe(true);
   });
+  // rejects a username that is too short
   it('rejects a username that is too short', () => {
     expect(signupSchema.safeParse({ ...valid, username: 'ab' }).success).toBe(
       false,
     );
   });
-
+  // rejects a username with invalid characters
   it('rejects a username with invalid characters', () => {
     expect(
       signupSchema.safeParse({ ...valid, username: 'bad name!' }).success,
@@ -48,19 +51,20 @@ describe('username validation', () => {
 });
 
 describe('leetcodeUsername validation', () => {
+  // accepts an empty leetcode username
   it('accepts an empty LeetCode username', () => {
     expect(
       signupSchema.safeParse({ ...valid, leetcodeUsername: '' }).success,
     ).toBe(true);
   });
-
+  // accepts a valid leetcode username
   it('accepts a valid LeetCode username', () => {
     expect(
       signupSchema.safeParse({ ...valid, leetcodeUsername: 'valid_user' })
         .success,
     ).toBe(true);
   });
-
+  // rejects a leetcode username with invalid characters
   it('rejects a LeetCode username with invalid characters', () => {
     expect(
       signupSchema.safeParse({ ...valid, leetcodeUsername: 'bad name!' })
@@ -78,6 +82,7 @@ describe('leetcodeUsername validation', () => {
 });
 
 describe('password validation', () => {
+  // accepts a valid password
   it('accepts a valid password', () => {
     expect(
       signupSchema.safeParse({
@@ -87,7 +92,7 @@ describe('password validation', () => {
       }).success,
     ).toBe(true);
   });
-
+  // rejects a password that is too short
   it('rejects a password that is too short', () => {
     expect(
       signupSchema.safeParse({
@@ -105,7 +110,7 @@ describe('password validation', () => {
       confirmPassword: '',
     }).success,
   ).toBe(false);
-
+  // rejects mismatched passwords and flags the confirm field
   it('rejects mismatched passwords and flags the confirm field', () => {
     const result = signupSchema.safeParse({
       ...valid,

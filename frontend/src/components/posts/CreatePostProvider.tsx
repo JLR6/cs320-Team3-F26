@@ -2,13 +2,13 @@
 
 import { createContext, useContext, useState } from 'react';
 import { PostFormDialog } from './PostFormDialog';
-import * as api from '@/lib/posts/posts-api';
+import { usePostActions } from '@/hooks/use-posts';
 import type { PostInput } from '@/types/post';
 
-const CreatePostContext = createContext<{
-  postsVersion: number;
-  openCreate: () => void;
-} | null>(null);
+// Lets any component (e.g. the sidebar's "New Post" button) open the create dialog
+const CreatePostContext = createContext<{ openCreate: () => void } | null>(
+  null,
+);
 
 export function CreatePostProvider({
   children,
@@ -16,17 +16,16 @@ export function CreatePostProvider({
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false); // is the create dialog open?
-  const [postsVersion, setPostsVersion] = useState(0); // bump to make feeds reload
+  const { create } = usePostActions();
 
+  // Saving also refreshes every feed (see usePostActions).
+  // Errors pass through so the dialog can show them.
   async function handleCreate(input: PostInput) {
-    await api.createPost(input);
-    setPostsVersion((v) => v + 1); // PostList sees the new key and reloads
+    await create.mutateAsync(input);
   }
 
   return (
-    <CreatePostContext.Provider
-      value={{ postsVersion, openCreate: () => setOpen(true) }}
-    >
+    <CreatePostContext.Provider value={{ openCreate: () => setOpen(true) }}>
       {children}
       <PostFormDialog
         open={open}

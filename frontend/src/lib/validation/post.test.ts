@@ -18,12 +18,14 @@ const valid = {
 };
 
 describe('sanity checks', () => {
+  // successfully passes with a fully valid input object
   it('successfully passes with a fully valid input object', () => {
     expect(postFormSchema.safeParse(valid).success).toBe(true);
   });
 });
 
 describe('problemNumber validation', () => {
+  // accepts a valid problem number and transforms it to a number
   it('accepts a valid problem number and transforms it to a number', () => {
     const result = postFormSchema.safeParse({ ...valid, problemNumber: '42' });
     expect(result.success).toBe(true);
@@ -32,7 +34,7 @@ describe('problemNumber validation', () => {
     }
   });
 
-  // problems should be greater than 0, numbers, and whole nums
+  // rejects an invalid problem number
   it('rejects an invalid problem number', () => {
     expect(
       postFormSchema.safeParse({ ...valid, problemNumber: '0' }).success,
@@ -57,16 +59,17 @@ describe('problemNumber validation', () => {
   });
 });
 
-// TODO, not too sure if there are any other specifics for the problem name in LeetCode
-// I think they are generally just alphanumeric with spaces, but idk if other characters are there
+// todo, not too sure if there are any other specifics for the problem name in leetcode
+// i think they are generally just alphanumeric with spaces, but idk if other characters are there
 // we can restrict further to that if we want, but for now just check that it is not empty
 describe('problemName validation', () => {
+  // accepts a valid problem name
   it('accepts a valid problem name', () => {
     expect(
       postFormSchema.safeParse({ ...valid, problemName: 'Two Sum' }).success,
     ).toBe(true);
   });
-
+  // rejects an empty or whitespace-only problem name
   it('rejects an empty or whitespace-only problem name', () => {
     expect(
       postFormSchema.safeParse({ ...valid, problemName: '' }).success,
@@ -79,6 +82,7 @@ describe('problemName validation', () => {
 
 // can basically be any character, just not empty
 describe('description validation', () => {
+  // accepts a valid description
   it('accepts a valid description', () => {
     expect(
       postFormSchema.safeParse({
@@ -87,7 +91,7 @@ describe('description validation', () => {
       }).success,
     ).toBe(true);
   });
-
+  // rejects an empty or whitespace-only description
   it('rejects an empty or whitespace-only description', () => {
     expect(
       postFormSchema.safeParse({ ...valid, description: '' }).success,
@@ -99,6 +103,7 @@ describe('description validation', () => {
 });
 
 describe('tags validation', () => {
+  // accepts tags string and transforms it
   it('accepts tags string and transforms it', () => {
     const result = postFormSchema.safeParse({ ...valid, tags: '#BFS #DP' });
     expect(result.success).toBe(true);
@@ -109,6 +114,7 @@ describe('tags validation', () => {
 });
 
 describe('complexity validation', () => {
+  // accepts empty complexities
   it('accepts empty complexities', () => {
     expect(
       postFormSchema.safeParse({
@@ -118,7 +124,7 @@ describe('complexity validation', () => {
       }).success,
     ).toBe(true);
   });
-
+  // trims whitespace from complexities
   it('trims whitespace from complexities', () => {
     const result = postFormSchema.safeParse({
       ...valid,
@@ -134,6 +140,7 @@ describe('complexity validation', () => {
 });
 
 describe('solutionUrl validation', () => {
+  // accepts an empty solution url and transforms it to undefined
   it('accepts an empty solution URL and transforms it to undefined', () => {
     const result = postFormSchema.safeParse({ ...valid, solutionUrl: '' });
     expect(result.success).toBe(true);
@@ -141,7 +148,7 @@ describe('solutionUrl validation', () => {
       expect(result.data.solutionUrl).toBeUndefined();
     }
   });
-
+  // accepts a valid leetcode url
   it('accepts a valid LeetCode URL', () => {
     expect(
       postFormSchema.safeParse({
@@ -150,7 +157,7 @@ describe('solutionUrl validation', () => {
       }).success,
     ).toBe(true);
   });
-
+  // rejects a non-leetcode url
   it('rejects a non-LeetCode URL', () => {
     expect(
       postFormSchema.safeParse({ ...valid, solutionUrl: 'https://github.com' })

@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import UpdatePassword from './PassResetForm';
 
 describe('UpdatePassword', () => {
+  // shows the password reset fields and save action
   it('shows the password reset fields and save action', () => {
     render(<UpdatePassword />);
 
@@ -12,7 +13,7 @@ describe('UpdatePassword', () => {
     expect(screen.getByLabelText('New Password (Repeat)')).toHaveValue('');
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument();
   });
-
+  // shows an error when the passwords do not match
   it('shows an error when the passwords do not match', async () => {
     const user = userEvent.setup();
     render(<UpdatePassword />);
@@ -30,7 +31,7 @@ describe('UpdatePassword', () => {
     );
     expect(screen.queryByRole('status')).toBeNull();
   });
-
+  // shows success and clears both fields when the passwords match
   it('shows success and clears both fields when the passwords match', async () => {
     const user = userEvent.setup();
     render(<UpdatePassword />);
@@ -49,7 +50,7 @@ describe('UpdatePassword', () => {
     expect(confirmPassword).toHaveValue('');
     expect(screen.queryByRole('alert')).toBeNull();
   });
-
+  // clears an older error before checking a new submission
   it('clears an older error before checking a new submission', async () => {
     const user = userEvent.setup();
     render(<UpdatePassword />);
