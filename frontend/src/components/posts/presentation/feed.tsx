@@ -1,18 +1,12 @@
 'use client';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { errorMessage } from '@/lib/utils';
 import { useCurrentUser } from '@/lib/client-utils';
-import {
-  createPost,
-  deletePost,
-  getPosts,
-  toggleLike,
-  updatePost,
-} from '@/lib/posts/posts-api';
+import { useFeed, usePostActions, usePostLike } from '@/hooks/use-posts';
 import type { FeedType } from '@/types/post';
 import type { Post, PostInput } from '@/types/post';
 import { DeletePostDialog } from '../DeletePostDialog';
@@ -37,80 +31,46 @@ export function PostFeed() {
     timeComplexities: [],
     q: '',
   });
-  const [posts, setPosts] = useState<Post[] | null>(null); // null = loading
-  const [cursor, setCursor] = useState<string | null>(null);
-  const [hasMore, setHasMore] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [editing, setEditing] = useState<Post | null>(null);
   const [deleting, setDeleting] = useState<Post | null>(null);
 
-  // Load the first page
-  const load = useCallback(async () => {
-    try {
-      setPosts(null);
-      setError(null);
-      setCursor(null);
-      const page = await getPosts(feed, filters);
-      setPosts(page.posts);
-      setCursor(page.nextCursor);
-      setHasMore(page.hasMore);
-    } catch (e) {
-      setPosts([]);
-      setError(errorMessage(e, "Couldn't load posts"));
-    }
-  }, [feed, filters]);
-
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      void load();
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [load]);
+  // React Query handles loading, errors, caching and the "load more" cursor
+  const query = useFeed(feed, filters);
+  const posts = query.data?.pages.flatMap((page) => page.posts);
+  const { create, update, remove } = usePostActions();
+  const like = usePostLike();
 
   // Load the next page
-  async function loadMore() {
-    try {
-      const page = await getPosts(feed, { ...filters, cursor });
-      setPosts((list) => [...(list ?? []), ...page.posts]);
-      setCursor(page.nextCursor);
-      setHasMore(page.hasMore);
-    } catch (e) {
-      toast.error(errorMessage(e, "Couldn't load more posts"));
-    }
+  function loadMore() {
+    query
+      .fetchNextPage({ throwOnError: true })
+      .catch((e) => toast.error(errorMessage(e, "Couldn't load more posts")));
   }
 
   // The form dialog shows errors, so these let errors pass through
   async function handleCreate(input: PostInput) {
-    await createPost(input);
+    await create.mutateAsync(input);
     toast.success('Posted!');
-    load();
   }
 
   async function handleEdit(input: PostInput) {
-    await updatePost(editing!.id, input);
+    await update.mutateAsync({ id: editing!.id, input });
     toast.success('Post updated');
-    load();
   }
 
-  async function handleDelete() {
-    try {
-      await deletePost(deleting!.id);
-      toast.success('Post deleted');
-      load();
-    } catch (e) {
-      toast.error(errorMessage(e, "Couldn't delete the post"));
-    }
+  function handleDelete() {
+    remove.mutate(deleting!.id, {
+      onSuccess: () => toast.success('Post deleted'),
+      onError: (e) => toast.error(errorMessage(e, "Couldn't delete the post")),
+    });
     setDeleting(null);
   }
 
-  async function handleLike(id: string) {
-    try {
-      const updated = await toggleLike(id);
-      setPosts((list) => list?.map((p) => (p.id === id ? updated : p)) ?? null);
-    } catch (e) {
-      toast.error(errorMessage(e, "Couldn't update the like"));
-    }
+  function handleLike(post: Post) {
+    like.mutate(post, {
+      onError: (e) => toast.error(errorMessage(e, "Couldn't update the like")),
+    });
   }
 
   return (
@@ -131,11 +91,10 @@ export function PostFeed() {
               variant="ghost"
               size="icon"
               aria-label="Refresh feed"
-              onClick={load}
+              onClick={() => query.refetch()}
             >
               <RefreshCw className="size-4" />
             </Button>
-            {/* Temporary: the sidebar's "+ New Post" button should open the same dialog */}
             {user && (
               <Button onClick={() => setCreating(true)}>
                 <Plus className="size-4" /> New Post
@@ -144,16 +103,18 @@ export function PostFeed() {
           </div>
         </div>
 
-        {posts === null && (
+        {query.isPending && (
           <p className="py-10 text-center text-sm text-muted-foreground">
             Loading...
           </p>
         )}
-        {error && (
-          <p className="py-10 text-center text-sm text-destructive">{error}</p>
+        {query.isError && (
+          <p className="py-10 text-center text-sm text-destructive">
+            {errorMessage(query.error, "Couldn't load posts")}
+          </p>
         )}
 
-        {posts?.length === 0 && !error && (
+        {posts?.length === 0 && (
           <p className="py-10 text-center text-sm text-muted-foreground">
             {feed === 'following'
               ? 'Go follow people to see their posts here.'
@@ -167,7 +128,7 @@ export function PostFeed() {
             post={post}
             isOwner={post.author.id === user?.id}
             canInteract={!!user}
-            onLike={() => handleLike(post.id)}
+            onLike={() => handleLike(post)}
             onEdit={() => setEditing(post)}
             onDelete={() => setDeleting(post)}
           />
@@ -175,10 +136,14 @@ export function PostFeed() {
 
         {posts &&
           posts.length > 0 &&
-          (hasMore ? (
+          (query.hasNextPage ? (
             <div className="flex justify-center py-4">
-              <Button variant="secondary" onClick={loadMore}>
-                Load more
+              <Button
+                variant="secondary"
+                onClick={loadMore}
+                disabled={query.isFetchingNextPage}
+              >
+                {query.isFetchingNextPage ? 'Loading...' : 'Load more'}
               </Button>
             </div>
           ) : (

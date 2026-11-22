@@ -22,10 +22,24 @@ export async function apiFetch<T>(
   if (typeof init.body === 'string')
     headers.set('Content-Type', 'application/json');
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${path}`, {
+  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? ''}${path}`, {
     ...init,
     headers,
   });
-  if (!res.ok) throw new ApiError(res.status, await res.text());
+  if (!res.ok) throw new ApiError(res.status, await readError(res));
   return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+}
+
+// Nest sends errors as JSON like { message: 'Comment not found' }, where message
+// can also be a list (validation errors). Fall back to the raw text otherwise.
+async function readError(res: Response): Promise<string> {
+  const text = await res.text();
+  try {
+    const { message } = JSON.parse(text);
+    if (Array.isArray(message)) return message.join(', ');
+    if (typeof message === 'string') return message;
+  } catch {
+    // not JSON, use the text as is
+  }
+  return text || `Request failed (${res.status})`;
 }

@@ -13,7 +13,7 @@ const { getClaims, supabase } = vi.hoisted(() => ({
   // keeps the cookie handlers proxy.ts gives supabase so tests can use them
   supabase: { cookies: null as CookieHandlers | null },
 }));
-// replace Supabase's server client with a controllable auth mock
+// replace supabase's server client with a controllable auth mock
 vi.mock('@supabase/ssr', () => ({
   createServerClient: (
     _url: string,
@@ -27,7 +27,7 @@ vi.mock('@supabase/ssr', () => ({
 
 import { updateSession } from './proxy';
 
-// run the middleware against a URL path without live nextjs server
+// run the middleware against a url path without live nextjs server
 const run = (path: string) =>
   updateSession(new NextRequest(`http://localhost:3000${path}`));
 
@@ -42,7 +42,7 @@ const AFTER_LOGIN = '/feed'; // where the proxy sends logged-in users from /logi
 describe('updateSession', () => {
   // basically to keep every test indepenedent
   beforeEach(() => vi.clearAllMocks());
-
+  // sends logged-out users from a private page to login, keeping the path
   it('sends logged-out users from a private page to login, keeping the path', async () => {
     loggedOut();
     const res = await run(`${PRIVATE_PATH}?tab=x`);
@@ -76,7 +76,7 @@ describe('updateSession', () => {
     },
   );
 
-  // authenticated users can access protected pages without a redirect
+  // lets logged-in users view private pages
   it('lets logged-in users view private pages', async () => {
     loggedIn();
     const res = await run(PRIVATE_PATH);
@@ -94,7 +94,7 @@ describe('updateSession cookies', () => {
       supabase.cookies!.setAll([{ name: 'sb-token', value: 'fresh' }]);
       return { data: { claims: { sub: 'user-1' } } };
     });
-
+  // gives supabase the cookies the browser sent
   it('gives supabase the cookies the browser sent', async () => {
     loggedOut();
     const req = new NextRequest('http://localhost:3000/feed', {
@@ -106,7 +106,7 @@ describe('updateSession cookies', () => {
       { name: 'sb-token', value: 'old' },
     ]);
   });
-
+  // saves a refreshed session on both the request and the response
   it('saves a refreshed session on both the request and the response', async () => {
     refreshSession();
     const req = new NextRequest('http://localhost:3000/feed');
@@ -117,7 +117,7 @@ describe('updateSession cookies', () => {
     // the response carries it so the browser stores the new session
     expect(res.cookies.get('sb-token')?.value).toBe('fresh');
   });
-
+  // keeps the refreshed session when redirecting a logged-in user
   it('keeps the refreshed session when redirecting a logged-in user', async () => {
     refreshSession();
     const res = await run('/login');

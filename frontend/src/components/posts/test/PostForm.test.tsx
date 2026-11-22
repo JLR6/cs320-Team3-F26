@@ -7,6 +7,7 @@ import { fillPostForm, makePost } from '@/lib/test-utils';
 const user = userEvent.setup();
 
 describe('PostForm', () => {
+  // blocks an empty submit, then clears a field error once the user types
   it('blocks an empty submit, then clears a field error once the user types', async () => {
     const onSubmit = vi.fn();
     render(<PostForm onSubmit={onSubmit} />);
@@ -20,7 +21,7 @@ describe('PostForm', () => {
     await user.type(name, 'T');
     expect(name).toHaveAttribute('aria-invalid', 'false');
   });
-
+  // submits the parsed values when the form is valid
   it('submits the parsed values when the form is valid', async () => {
     const onSubmit = vi.fn();
     render(<PostForm onSubmit={onSubmit} />);
@@ -32,7 +33,7 @@ describe('PostForm', () => {
       expect.objectContaining({ problemNumber: 1 }),
     );
   });
-
+  // shows a save error when onsubmit fails
   it('shows a save error when onSubmit fails', async () => {
     render(
       <PostForm onSubmit={vi.fn().mockRejectedValue(new Error('boom'))} />,
@@ -45,7 +46,7 @@ describe('PostForm', () => {
       await screen.findByText("Couldn't save your post. Please try again."),
     ).toBeInTheDocument();
   });
-
+  // edit mode: prefills the fields, relabels the button, and cancels
   it('edit mode: prefills the fields, relabels the button, and cancels', async () => {
     const onCancel = vi.fn();
     render(
