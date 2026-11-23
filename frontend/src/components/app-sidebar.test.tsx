@@ -6,6 +6,7 @@ import { useUser } from '@/hooks/use-user';
 import { getProfilePictureUrl } from '@/lib/api/users';
 import { apiFetch } from '@/lib/api/client';
 import userEvent from '@testing-library/user-event';
+import { CreatePostProvider } from './posts/CreatePostProvider';
 
 // test data
 const testAuthUser = {
@@ -36,26 +37,27 @@ vi.mock('@/lib/api/users', () => ({
 }));
 const mockedGetProfilePictureUrl = vi.mocked(getProfilePictureUrl);
 
+function sidebar() {
+  return (
+    <CreatePostProvider>
+      <SidebarProvider>
+        <AppSidebar />
+      </SidebarProvider>
+    </CreatePostProvider>
+  );
+}
+
 describe('AppSidebar', () => {
   it('does not refetch sidebar data after a render', async () => {
     mockedUseUser.mockReturnValue(testAuthUser);
     mockedApiFetch.mockClear().mockResolvedValue([]);
     mockedGetProfilePictureUrl.mockClear().mockResolvedValue('');
-    const sidebar = (
-      <SidebarProvider>
-        <AppSidebar />
-      </SidebarProvider>
-    );
-    const { rerender } = render(sidebar);
+    const { rerender } = render(sidebar());
     await waitFor(() => expect(mockedApiFetch).toHaveBeenCalled());
     await act(async () => {});
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
     expect(mockedGetProfilePictureUrl).toHaveBeenCalledTimes(1);
-    rerender(
-      <SidebarProvider>
-        <AppSidebar />
-      </SidebarProvider>,
-    );
+    rerender(sidebar());
     await act(async () => {});
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
     expect(mockedGetProfilePictureUrl).toHaveBeenCalledTimes(1);
@@ -67,11 +69,7 @@ describe('AppSidebar', () => {
     mockedGetProfilePictureUrl.mockRejectedValue(
       new TypeError('Failed to fetch'),
     );
-    render(
-      <SidebarProvider>
-        <AppSidebar />
-      </SidebarProvider>,
-    );
+    render(sidebar());
     await act(async () => {});
     expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument();
     expect(screen.getByRole('img')).toHaveAttribute(
@@ -86,11 +84,7 @@ describe('AppSidebar', () => {
   it('renders the logged out state', () => {
     // mocking the logged out state and rendering
     mockedUseUser.mockReturnValue(null);
-    render(
-      <SidebarProvider>
-        <AppSidebar />
-      </SidebarProvider>,
-    );
+    render(sidebar());
 
     // logo
     const logo = screen.getByRole('link', { name: 'LeetMeet' });
@@ -149,11 +143,7 @@ describe('AppSidebar', () => {
     mockedUseUser.mockReturnValue(testAuthUser);
     mockedApiFetch.mockResolvedValue([]);
     mockedGetProfilePictureUrl.mockResolvedValue('');
-    render(
-      <SidebarProvider>
-        <AppSidebar />
-      </SidebarProvider>,
-    );
+    render(sidebar());
 
     await expectLoggedInSidebar(testAuthUser.user_metadata.username);
 
@@ -175,11 +165,7 @@ describe('AppSidebar', () => {
       { name: 'BBB-bbb', id: '2' },
     ]);
     mockedGetProfilePictureUrl.mockResolvedValue('');
-    render(
-      <SidebarProvider>
-        <AppSidebar />
-      </SidebarProvider>,
-    );
+    render(sidebar());
 
     await expectLoggedInSidebar(testAuthUser.user_metadata.username);
 
@@ -203,11 +189,7 @@ describe('AppSidebar', () => {
     mockedGetProfilePictureUrl.mockResolvedValue(
       'localhost:3000/this_is_a_fake_url',
     );
-    render(
-      <SidebarProvider>
-        <AppSidebar />
-      </SidebarProvider>,
-    );
+    render(sidebar());
 
     await expectLoggedInSidebar(testAuthUser.user_metadata.username);
 
