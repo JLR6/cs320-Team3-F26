@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './app-sidebar';
 import { useUser } from '@/hooks/use-user';
@@ -42,6 +42,50 @@ vi.mock('@/lib/api/users', () => ({
 const mockedGetUserByUsername = vi.mocked(getUserByUsername);
 
 describe('AppSidebar', () => {
+  it('does not refetch sidebar data after a render', async () => {
+    mockedUseUser.mockReturnValue(testAuthUser);
+    mockedApiFetch.mockClear().mockResolvedValue([]);
+    mockedGetUserByUsername.mockClear().mockResolvedValue(testDbUser);
+    const sidebar = (
+      <SidebarProvider>
+        <AppSidebar />
+      </SidebarProvider>
+    );
+    const { rerender } = render(sidebar);
+    await waitFor(() => expect(mockedApiFetch).toHaveBeenCalled());
+    await act(async () => {});
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockedGetUserByUsername).toHaveBeenCalledTimes(1);
+    rerender(
+      <SidebarProvider>
+        <AppSidebar />
+      </SidebarProvider>,
+    );
+    await act(async () => {});
+    expect(mockedApiFetch).toHaveBeenCalledTimes(1);
+    expect(mockedGetUserByUsername).toHaveBeenCalledTimes(1);
+  });
+
+  it('keeps the sidebar usable when its requests fail', async () => {
+    mockedUseUser.mockReturnValue(testAuthUser);
+    mockedApiFetch.mockRejectedValue(new TypeError('Failed to fetch'));
+    mockedGetUserByUsername.mockRejectedValue(new TypeError('Failed to fetch'));
+    render(
+      <SidebarProvider>
+        <AppSidebar />
+      </SidebarProvider>,
+    );
+    await act(async () => {});
+    expect(screen.getByRole('link', { name: 'Profile' })).toBeInTheDocument();
+    expect(screen.getByRole('img')).toHaveAttribute(
+      'src',
+      'https://assets.leetcode.com/users/default_avatar.jpg',
+    );
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Could not load sidebar data. Please refresh to try again.',
+    );
+  });
+
   it('renders the logged out state', () => {
     // mocking the logged out state and rendering
     mockedUseUser.mockReturnValue(null);

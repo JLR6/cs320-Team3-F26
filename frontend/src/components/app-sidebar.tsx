@@ -441,29 +441,50 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const data = username ? loggedInData(username) : loggedOutData;
 
   // data to be loaded for the logged in sidebar
-  const [families, setFamilies] = React.useState<
-    { title: string; url: string }[]
-  >([]);
-  const [profilePicture, setProfilePicture] = React.useState<
-    string | undefined
-  >();
+  const [sidebarData, setSidebarData] = React.useState<{
+    username: string;
+    families: { title: string; url: string }[];
+    profilePicture?: string;
+    failed: boolean;
+  }>();
 
-  if (username) {
-    apiFetch('/user-families').then((json) => {
-      const families = json as { name: string }[];
-      setFamilies(
-        families.map((family) => ({
-          title: family.name,
-          url: `/families/${family.name}`,
-        })),
-      );
-    });
-    getUserByUsername(username).then((json) => {
-      setProfilePicture(json.profile_picture ?? undefined);
+  React.useEffect(() => {
+    if (!username) return;
+    let active = true;
+
+    void Promise.allSettled([
+      apiFetch<{ name: string }[]>('/user-families'),
+      getUserByUsername(username),
+    ]).then(([families, profile]) => {
+      if (!active) return;
+      setSidebarData({
+        username,
+        families:
+          families.status === 'fulfilled'
+            ? families.value.map((family) => ({
+                title: family.name,
+                url: `/families/${family.name}`,
+              }))
+            : [],
+        profilePicture:
+          profile.status === 'fulfilled'
+            ? (profile.value.profile_picture ?? undefined)
+            : undefined,
+        failed: families.status === 'rejected' || profile.status === 'rejected',
+      });
     });
 
-    data.navSubmenu!.items = families;
-    if (profilePicture) data.user!.profilePicture = profilePicture;
+    return () => {
+      active = false;
+    };
+  }, [username, authUser?.id]);
+
+  const currentData =
+    username && sidebarData?.username === username ? sidebarData : undefined;
+  if (username && currentData) {
+    data.navSubmenu!.items = currentData.families;
+    if (currentData.profilePicture)
+      data.user!.profilePicture = currentData.profilePicture;
   }
 
   return (
@@ -489,6 +510,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavMain data={data.navMain} />
         <ActionsMain data={data.enabledActionsMain} />
         <NavSubmenu data={data.navSubmenu} />
+        {currentData?.failed && (
+          <p role="status" className="px-4 text-sm text-muted-foreground">
+            Could not load sidebar data. Please refresh to try again.
+          </p>
+        )}
       </SidebarContent>
 
       {/* Sidebar footer, displays user information if available */}
