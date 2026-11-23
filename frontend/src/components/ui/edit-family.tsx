@@ -268,7 +268,7 @@ function EditFamilyBody({
         }}
         maxLength={100}
         disabled={busy || !canManage || !onUpdateFamily}
-        className="mt-1 mb-4 h-10 rounded-md border-border text-base md:text-base"
+        className="mt-1 mb-4 h-10 border-border text-base md:text-base"
       />
       <form
         onSubmit={(event) => {
@@ -285,7 +285,7 @@ function EditFamilyBody({
         <label htmlFor={`${id}-emails`} className="font-semibold">
           Invite Members
         </label>
-        <div className="mt-1 mb-4 rounded-md border border-border p-3 focus-within:border-black dark:focus-within:border-foreground">
+        <div className="mt-1 mb-4 rounded-sm border border-border p-3 focus-within:border-black dark:focus-within:border-foreground">
           <div className="flex min-h-9 flex-wrap items-center gap-2 rounded-sm">
             {recipients.map((email) => (
               <span
