@@ -15,7 +15,7 @@ describe('Posts HTTP endpoints', () => {
   const post = { post_id: id, problem_number: 1, post_description: 'A post' };
   const emptyPage = { posts: [], nextCursor: null, hasMore: false };
   const service = {
-    findAll: vi.fn(), findFollowing: vi.fn(), findOne: vi.fn(), create: vi.fn(),
+    findAll: vi.fn(), findFollowing: vi.fn(), findByUser: vi.fn(), findOne: vi.fn(), create: vi.fn(),
     update: vi.fn(), remove: vi.fn(),
   };
 
@@ -166,6 +166,46 @@ describe('Posts HTTP endpoints', () => {
     },
   );
 
+  // the profile page loads one user's posts with the default page size
+  it('GET /posts/user/:userId returns that user\'s posts', async () => {
+    const page = { posts: [post], nextCursor: null, hasMore: false };
+    service.findByUser.mockResolvedValue(page);
+
+    await request(app.getHttpServer()).get(`/posts/user/${id}`)
+      .set('Authorization', 'Bearer user-token').expect(200, page);
+    expect(service.findByUser).toHaveBeenCalledWith('user-token', id, [], { limit: 50 });
+    // "user" must not be treated as a post ID
+    expect(service.findOne).not.toHaveBeenCalled();
+  });
+
+  it('GET /posts/user/:userId passes tags, cursor and limit', async () => {
+    const cursor = { post_id: id, created_at: '2026-10-24T12:30:45.123456' };
+    const query = new URLSearchParams({ cursor: encodePostCursor(cursor), limit: '20' });
+    query.append('tag', ' Array ');
+    query.append('tag', 'Array');
+    service.findByUser.mockResolvedValue(emptyPage);
+
+    await request(app.getHttpServer()).get(`/posts/user/${id}?${query}`)
+      .set('Authorization', 'Bearer user-token').expect(200, emptyPage);
+    expect(service.findByUser).toHaveBeenCalledWith('user-token', id, ['Array'], {
+      cursor, limit: 20,
+    });
+  });
+
+  it('GET /posts/user/:userId rejects a user ID that is not a UUID', async () => {
+    await request(app.getHttpServer()).get('/posts/user/not-a-uuid')
+      .set('Authorization', 'Bearer user-token').expect(400);
+    expect(service.findByUser).not.toHaveBeenCalled();
+  });
+
+  it.each(['tag=Array&tag=', 'limit=0', 'cursor=invalid'])(
+    'GET /posts/user/:userId rejects invalid filters: %s', async query => {
+      await request(app.getHttpServer()).get(`/posts/user/${id}?${query}`)
+        .set('Authorization', 'Bearer user-token').expect(400);
+      expect(service.findByUser).not.toHaveBeenCalled();
+    },
+  );
+
   it('GET /posts/:id returns one post', async () => {
     service.findOne.mockResolvedValue(post);
     await request(app.getHttpServer()).get(`/posts/${id}`)
@@ -238,7 +278,8 @@ describe('Posts HTTP endpoints', () => {
   });
 
   const routes = [
-    ['get', '/posts'], ['get', '/posts/following'], ['get', `/posts/${id}`], ['post', '/posts'],
+    ['get', '/posts'], ['get', '/posts/following'], ['get', `/posts/user/${id}`],
+    ['get', `/posts/${id}`], ['post', '/posts'],
     ['patch', `/posts/${id}`], ['delete', `/posts/${id}`],
   ] as const;
 

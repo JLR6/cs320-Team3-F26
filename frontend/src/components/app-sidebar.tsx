@@ -47,6 +47,7 @@ import {
   PopoverTriggerMore,
   PopoverTriggerDropdown,
 } from '@/components/ui/popover';
+import { useCreatePost } from './posts/CreatePostProvider';
 
 // enums for defined actions in various parts the sidebar
 // passed into ActionMain(type), etc. to get the renderable component
@@ -144,7 +145,6 @@ function NavMain() {
 
         return (
           <SidebarMenuItem key={item.title}>
-            {/* <Link href={item.url}> */}
             <SidebarMenuButton
               isActive={item.url === current}
               render={<Link href={item.url} />}
@@ -152,7 +152,6 @@ function NavMain() {
               <LucideIcon />
               {item.title}
             </SidebarMenuButton>
-            {/* </Link> */}
           </SidebarMenuItem>
         );
       })}
@@ -183,15 +182,15 @@ function LogInButton() {
     </SidebarMenuButton>
   );
 }
-
-/**
- * The SidebarMenuButton for create post
- * TO DO: On click, open the Create Post dialog
- */
 function CreatePostButton() {
+  const { openCreate } = useCreatePost();
+
   return (
-    <SidebarMenuButton variant="primaryRound" className="pl-0">
-      {/* This will need to be wrapped in a DialogTrigger instead of a div later */}
+    <SidebarMenuButton
+      variant="primaryRound"
+      className="pl-0"
+      onClick={openCreate}
+    >
       <div className="flex items-center gap-3 -ml-4.5">
         <Plus />
         {ActionTypeMain.CreatePost}
@@ -199,7 +198,6 @@ function CreatePostButton() {
     </SidebarMenuButton>
   );
 }
-
 /**
  * Takes an ActionTypeMain and returns the corresponding SidebarMenuButton
  */
