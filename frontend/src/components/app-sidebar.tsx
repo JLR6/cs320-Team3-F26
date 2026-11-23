@@ -453,7 +453,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     let active = true;
 
     void Promise.allSettled([
-      apiFetch<{ name: string }[]>('/families'),
+      apiFetch<{ name: string; id: string }[]>('/families'),
       getProfilePictureUrl(authUser.id),
     ]).then(([families, profilePicture]) => {
       if (!active) return;
@@ -463,7 +463,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           families.status === 'fulfilled'
             ? families.value.map((family) => ({
                 title: family.name,
-                url: `/families/${family.name}`,
+                url: `/family/${family.id}`,
               }))
             : [],
         profilePicture:

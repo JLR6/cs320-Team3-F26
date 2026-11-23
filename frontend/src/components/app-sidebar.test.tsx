@@ -171,8 +171,8 @@ describe('AppSidebar', () => {
     // mocking the logged in state and rendering
     mockedUseUser.mockReturnValue(testAuthUser);
     mockedApiFetch.mockResolvedValue([
-      { name: 'aaa-AAA' },
-      { name: 'BBB-bbb' },
+      { name: 'aaa-AAA', id: '1' },
+      { name: 'BBB-bbb', id: '2' },
     ]);
     mockedGetProfilePictureUrl.mockResolvedValue('');
     render(
@@ -186,9 +186,11 @@ describe('AppSidebar', () => {
     // linked families
     const familyA = await screen.findByRole('link', { name: 'aaa-AAA' });
     expect(familyA).toBeInTheDocument();
+    expect(familyA).toHaveAttribute('href', '/family/1');
 
     const familyB = await screen.findByRole('link', { name: 'BBB-bbb' });
     expect(familyB).toBeInTheDocument();
+    expect(familyB).toHaveAttribute('href', '/family/2');
 
     // no other links
     expect((await screen.findAllByRole('link')).length).toEqual(5);
