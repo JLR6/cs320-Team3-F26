@@ -18,7 +18,7 @@ import type { Post, PostInput } from '@/types/post';
 import { DeletePostDialog } from '../DeletePostDialog';
 import { PostCard } from '../PostCard';
 import { PostFormDialog } from '../PostFormDialog';
-import {SearchBar} from '@/components/searchBar';
+import { SearchBar } from '@/components/searchBar';
 
 export function PostFeed() {
   const user = useCurrentUser();
@@ -107,97 +107,96 @@ export function PostFeed() {
   }
 
   return (
-      <div className="mx-auto flex w-full max-w-6xl items-start gap-6 p-4">
-
-    <div className="min-w-0 flex-1 space-y-4">
-      <div className="flex items-center justify-between">
-        <Tabs
-          value={feed}
-          onValueChange={(v: string) => setFeed(v as FeedType)}
-        >
-          <TabsList>
-            <TabsTrigger value="main">Main</TabsTrigger>
-            <TabsTrigger value="following">Following</TabsTrigger>
-          </TabsList>
-        </Tabs>
-        <div className="flex gap-2">
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label="Refresh feed"
-            onClick={load}
+    <div className="mx-auto flex w-full max-w-6xl items-start gap-6 p-4">
+      <div className="min-w-0 flex-1 space-y-4">
+        <div className="flex items-center justify-between">
+          <Tabs
+            value={feed}
+            onValueChange={(v: string) => setFeed(v as FeedType)}
           >
-            <RefreshCw className="size-4" />
-          </Button>
-          {/* Temporary: the sidebar's "+ New Post" button should open the same dialog */}
-          {user && (
-            <Button onClick={() => setCreating(true)}>
-              <Plus className="size-4" /> New Post
+            <TabsList>
+              <TabsTrigger value="main">Main</TabsTrigger>
+              <TabsTrigger value="following">Following</TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Refresh feed"
+              onClick={load}
+            >
+              <RefreshCw className="size-4" />
             </Button>
-          )}
-        </div>
-      </div>
-
-      {posts === null && (
-        <p className="py-10 text-center text-sm text-muted-foreground">
-          Loading...
-        </p>
-      )}
-      {error && (
-        <p className="py-10 text-center text-sm text-destructive">{error}</p>
-      )}
-
-      {posts?.length === 0 && !error && (
-        <p className="py-10 text-center text-sm text-muted-foreground">
-          {feed === 'following'
-            ? 'Go follow people to see their posts here.'
-            : 'No posts yet.'}
-        </p>
-      )}
-
-      {posts?.map((post) => (
-        <PostCard
-          key={post.id}
-          post={post}
-          isOwner={post.author.id === user?.id}
-          canInteract={!!user}
-          onLike={() => handleLike(post.id)}
-          onEdit={() => setEditing(post)}
-          onDelete={() => setDeleting(post)}
-        />
-      ))}
-
-      {posts &&
-        posts.length > 0 &&
-        (hasMore ? (
-          <div className="flex justify-center py-4">
-            <Button variant="secondary" onClick={loadMore}>
-              Load more
-            </Button>
+            {/* Temporary: the sidebar's "+ New Post" button should open the same dialog */}
+            {user && (
+              <Button onClick={() => setCreating(true)}>
+                <Plus className="size-4" /> New Post
+              </Button>
+            )}
           </div>
-        ) : (
-          <p className="py-6 text-center text-xs text-muted-foreground">
-            You&apos;ve reached the end of your feed
+        </div>
+
+        {posts === null && (
+          <p className="py-10 text-center text-sm text-muted-foreground">
+            Loading...
           </p>
+        )}
+        {error && (
+          <p className="py-10 text-center text-sm text-destructive">{error}</p>
+        )}
+
+        {posts?.length === 0 && !error && (
+          <p className="py-10 text-center text-sm text-muted-foreground">
+            {feed === 'following'
+              ? 'Go follow people to see their posts here.'
+              : 'No posts yet.'}
+          </p>
+        )}
+
+        {posts?.map((post) => (
+          <PostCard
+            key={post.id}
+            post={post}
+            isOwner={post.author.id === user?.id}
+            canInteract={!!user}
+            onLike={() => handleLike(post.id)}
+            onEdit={() => setEditing(post)}
+            onDelete={() => setDeleting(post)}
+          />
         ))}
 
-      <PostFormDialog
-        open={creating}
-        onOpenChange={setCreating}
-        onSubmit={handleCreate}
-      />
-      <PostFormDialog
-        open={!!editing}
-        onOpenChange={(o) => !o && setEditing(null)}
-        post={editing ?? undefined}
-        onSubmit={handleEdit}
-      />
-      <DeletePostDialog
-        open={!!deleting}
-        onOpenChange={(o) => !o && setDeleting(null)}
-        onConfirm={handleDelete}
-      />
-        </div>
+        {posts &&
+          posts.length > 0 &&
+          (hasMore ? (
+            <div className="flex justify-center py-4">
+              <Button variant="secondary" onClick={loadMore}>
+                Load more
+              </Button>
+            </div>
+          ) : (
+            <p className="py-6 text-center text-xs text-muted-foreground">
+              You&apos;ve reached the end of your feed
+            </p>
+          ))}
+
+        <PostFormDialog
+          open={creating}
+          onOpenChange={setCreating}
+          onSubmit={handleCreate}
+        />
+        <PostFormDialog
+          open={!!editing}
+          onOpenChange={(o) => !o && setEditing(null)}
+          post={editing ?? undefined}
+          onSubmit={handleEdit}
+        />
+        <DeletePostDialog
+          open={!!deleting}
+          onOpenChange={(o) => !o && setDeleting(null)}
+          onConfirm={handleDelete}
+        />
+      </div>
       <aside className="hidden w-67.25 shrink-0 md:block">
         <SearchBar onFiltersChange={setFilters} />
       </aside>

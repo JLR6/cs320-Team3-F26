@@ -1,18 +1,13 @@
-"use client";
+'use client';
 
 // import { useState } from "react"; // (old) now also needs useEffect
-import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
-import {
-  Card,
-  CardHeader,
-  CardContent,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { DIFFICULTIES } from "@/lib/constants"; // NEW: real difficulties
-import { getTags } from "@/lib/posts/posts-api"; // NEW: real tags from the backend
-
+import { useEffect, useState } from 'react';
+import { Search } from 'lucide-react';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
+import { DIFFICULTIES } from '@/lib/constants'; // NEW: real difficulties
+import { getTags } from '@/lib/posts/posts-api'; // NEW: real tags from the backend
 
 // NEW: same list the post form uses, so the two can never drift apart.
 // (Difficulty is stored on the problem, so it is a fixed list, not loaded.)
@@ -21,12 +16,12 @@ const availableDifficulties = [...DIFFICULTIES];
 // TEMP!!! Mock time complexity options
 // MUST: Replace with available values from post data when connected with backend
 const availableComplexities = [
-  "O(1)",
-  "O(log n)",
-  "O(n)",
-  "O(n log n)",
-  "O(n²)",
-  "O(2ⁿ)",
+  'O(1)',
+  'O(log n)',
+  'O(n)',
+  'O(n log n)',
+  'O(n²)',
+  'O(2ⁿ)',
 ];
 type SearchBarProps = {
   onFiltersChange: (filters: {
@@ -40,13 +35,17 @@ type SearchBarProps = {
 
 export function SearchBar({ onFiltersChange }: SearchBarProps) {
   // Local state for testing the UI before backend integration
-  const [search, setSearch] = useState("");
-  const [problemNumber, setProblemNumber] = useState("");
+  const [search, setSearch] = useState('');
+  const [problemNumber, setProblemNumber] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [tagSearch, setTagSearch] = useState("");
+  const [tagSearch, setTagSearch] = useState('');
   const [showAllTags, setShowAllTags] = useState(false);
-  const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>([]);
-  const [selectedComplexities, setSelectedComplexities] = useState<string[]>([]);
+  const [selectedDifficulties, setSelectedDifficulties] = useState<string[]>(
+    [],
+  );
+  const [selectedComplexities, setSelectedComplexities] = useState<string[]>(
+    [],
+  );
 
   // NEW: tags loaded from the backend. null = still loading.
   // Shown with a leading "#" so the existing toggleTag logic (which strips it) keeps working.
@@ -88,7 +87,7 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
     onFiltersChange(next);
   }
 
-    // Select or deselect a tag and notify the feed
+  // Select or deselect a tag and notify the feed
   function toggleTag(tag: string) {
     const updatedTags = selectedTags.includes(tag)
       ? selectedTags.filter((item) => item !== tag)
@@ -118,7 +117,8 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
     notifyFilters({
       tags: selectedTags.map((item) => item.replace(/^#/, '').trim()),
       difficulties: filter === 'difficulties' ? updated : selectedDifficulties,
-      timeComplexities: filter === 'timeComplexities' ? updated : selectedComplexities,
+      timeComplexities:
+        filter === 'timeComplexities' ? updated : selectedComplexities,
       q: search.trim(),
       problemNumber: problemNumber ? Number(problemNumber) : undefined,
     });
@@ -126,19 +126,25 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
 
   // Clear all selected filters
   function clearFilters() {
-    setSearch("");
-    setProblemNumber("");
-    setTagSearch("");
+    setSearch('');
+    setProblemNumber('');
+    setTagSearch('');
     setShowAllTags(false);
     setSelectedTags([]);
     setSelectedDifficulties([]);
     setSelectedComplexities([]);
-    notifyFilters({ tags: [], difficulties: [], timeComplexities: [], q: '', problemNumber: undefined });
+    notifyFilters({
+      tags: [],
+      difficulties: [],
+      timeComplexities: [],
+      q: '',
+      problemNumber: undefined,
+    });
   }
 
   // Check whether any filters are currently selected
   const hasActiveFilters =
-    search.trim() !== "" ||
+    search.trim() !== '' ||
     selectedTags.length > 0 ||
     selectedDifficulties.length > 0 ||
     selectedComplexities.length > 0 ||
@@ -186,7 +192,9 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
                 difficulties: selectedDifficulties,
                 timeComplexities: selectedComplexities,
                 q,
-                problemNumber: problemNumber ? Number(problemNumber) : undefined,
+                problemNumber: problemNumber
+                  ? Number(problemNumber)
+                  : undefined,
               });
             }}
             placeholder="Search post descriptions..."
@@ -195,7 +203,10 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
         </div>
 
         <div className="mt-4">
-          <label htmlFor="problem-number-filter" className="mb-2 block text-[12px] font-bold text-foreground">
+          <label
+            htmlFor="problem-number-filter"
+            className="mb-2 block text-[12px] font-bold text-foreground"
+          >
             Problem Number (Optional)
           </label>
           <Input
@@ -214,7 +225,10 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
                 difficulties: selectedDifficulties,
                 timeComplexities: selectedComplexities,
                 q: search.trim(),
-                problemNumber: value && Number.isInteger(parsed) && parsed > 0 ? parsed : undefined,
+                problemNumber:
+                  value && Number.isInteger(parsed) && parsed > 0
+                    ? parsed
+                    : undefined,
               });
             }}
             placeholder="e.g. 1"
@@ -224,7 +238,6 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
 
         {/* Filter sections */}
         <div className="mt-4 space-y-4">
-
           {/* Problem Tags */}
           <section>
             <h3 className="mb-2 text-[12px] font-bold text-foreground">
@@ -233,10 +246,14 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
 
             {/* NEW: loading and error messages for the tag list */}
             {availableTags === null && !tagsFailed && (
-              <p className="text-[11px] text-muted-foreground">Loading tags...</p>
+              <p className="text-[11px] text-muted-foreground">
+                Loading tags...
+              </p>
             )}
             {tagsFailed && (
-              <p className="text-[11px] text-muted-foreground">Couldn&apos;t load tags.</p>
+              <p className="text-[11px] text-muted-foreground">
+                Couldn&apos;t load tags.
+              </p>
             )}
 
             <Input
@@ -257,14 +274,12 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
                     type="button"
                     variant="secondary"
                     size="sm"
-                    onClick={() =>
-                      toggleTag(tag)
-                    }
+                    onClick={() => toggleTag(tag)}
                     aria-pressed={isSelected}
                     className={`h-6 min-h-0 rounded-xl px-2.5 py-1 text-[11px] font-bold leading-none shadow-none ${
                       isSelected
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-secondary text-secondary-foreground hover:bg-muted"
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        : 'bg-secondary text-secondary-foreground hover:bg-muted'
                     }`}
                   >
                     {tag}
@@ -282,7 +297,7 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
                   onClick={() => setShowAllTags(!showAllTags)}
                   className="h-auto p-0 text-[11px] font-medium text-muted-foreground hover:bg-transparent hover:text-foreground"
                 >
-                  {showAllTags ? "Show fewer tags" : "Show all tags"}
+                  {showAllTags ? 'Show fewer tags' : 'Show all tags'}
                 </Button>
               </div>
             )}
@@ -315,8 +330,8 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
                     aria-pressed={isSelected}
                     className={`h-6 min-h-0 rounded-xl px-2.5 py-1 text-[11px] font-bold leading-none shadow-none ${
                       isSelected
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-secondary text-secondary-foreground hover:bg-muted"
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        : 'bg-secondary text-secondary-foreground hover:bg-muted'
                     }`}
                   >
                     {difficulty}
@@ -353,8 +368,8 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
                     aria-pressed={isSelected}
                     className={`h-6 min-h-0 rounded-xl px-2.5 py-1 text-[11px] font-bold leading-none shadow-none ${
                       isSelected
-                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                        : "bg-secondary text-secondary-foreground hover:bg-muted"
+                        ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                        : 'bg-secondary text-secondary-foreground hover:bg-muted'
                     }`}
                   >
                     {complexity}
@@ -363,7 +378,6 @@ export function SearchBar({ onFiltersChange }: SearchBarProps) {
               })}
             </div>
           </section>
-
         </div>
       </CardContent>
     </Card>
