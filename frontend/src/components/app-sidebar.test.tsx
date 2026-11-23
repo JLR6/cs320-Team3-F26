@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { AppSidebar } from './app-sidebar';
 import { useUser } from '@/hooks/use-user';
-import { getUserByUsername } from '@/lib/api/users';
+import { getProfilePictureUrl } from '@/lib/api/users';
 import { apiFetch } from '@/lib/api/client';
 import userEvent from '@testing-library/user-event';
 
@@ -14,11 +14,6 @@ const testAuthUser = {
   created_at: '00:00:00',
   user_metadata: { username: 'testuser' },
   app_metadata: {},
-};
-
-const testDbUser = {
-  user_id: '111-111',
-  username: 'testuser',
 };
 
 // mocking necessary hooks and api calls
@@ -37,15 +32,15 @@ vi.mock('@/lib/api/client', () => ({
 const mockedApiFetch = vi.mocked(apiFetch);
 
 vi.mock('@/lib/api/users', () => ({
-  getUserByUsername: vi.fn(),
+  getProfilePictureUrl: vi.fn(),
 }));
-const mockedGetUserByUsername = vi.mocked(getUserByUsername);
+const mockedGetProfilePictureUrl = vi.mocked(getProfilePictureUrl);
 
 describe('AppSidebar', () => {
   it('does not refetch sidebar data after a render', async () => {
     mockedUseUser.mockReturnValue(testAuthUser);
     mockedApiFetch.mockClear().mockResolvedValue([]);
-    mockedGetUserByUsername.mockClear().mockResolvedValue(testDbUser);
+    mockedGetProfilePictureUrl.mockClear().mockResolvedValue('');
     const sidebar = (
       <SidebarProvider>
         <AppSidebar />
@@ -55,7 +50,7 @@ describe('AppSidebar', () => {
     await waitFor(() => expect(mockedApiFetch).toHaveBeenCalled());
     await act(async () => {});
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
-    expect(mockedGetUserByUsername).toHaveBeenCalledTimes(1);
+    expect(mockedGetProfilePictureUrl).toHaveBeenCalledTimes(1);
     rerender(
       <SidebarProvider>
         <AppSidebar />
@@ -63,13 +58,15 @@ describe('AppSidebar', () => {
     );
     await act(async () => {});
     expect(mockedApiFetch).toHaveBeenCalledTimes(1);
-    expect(mockedGetUserByUsername).toHaveBeenCalledTimes(1);
+    expect(mockedGetProfilePictureUrl).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the sidebar usable when its requests fail', async () => {
     mockedUseUser.mockReturnValue(testAuthUser);
     mockedApiFetch.mockRejectedValue(new TypeError('Failed to fetch'));
-    mockedGetUserByUsername.mockRejectedValue(new TypeError('Failed to fetch'));
+    mockedGetProfilePictureUrl.mockRejectedValue(
+      new TypeError('Failed to fetch'),
+    );
     render(
       <SidebarProvider>
         <AppSidebar />
@@ -151,7 +148,7 @@ describe('AppSidebar', () => {
     // mocking the logged in state and rendering
     mockedUseUser.mockReturnValue(testAuthUser);
     mockedApiFetch.mockResolvedValue([]);
-    mockedGetUserByUsername.mockResolvedValue(testDbUser);
+    mockedGetProfilePictureUrl.mockResolvedValue('');
     render(
       <SidebarProvider>
         <AppSidebar />
@@ -177,7 +174,7 @@ describe('AppSidebar', () => {
       { name: 'aaa-AAA' },
       { name: 'BBB-bbb' },
     ]);
-    mockedGetUserByUsername.mockResolvedValue(testDbUser);
+    mockedGetProfilePictureUrl.mockResolvedValue('');
     render(
       <SidebarProvider>
         <AppSidebar />
@@ -201,10 +198,9 @@ describe('AppSidebar', () => {
     // mocking the logged in state and rendering
     mockedUseUser.mockReturnValue(testAuthUser);
     mockedApiFetch.mockResolvedValue([]);
-    mockedGetUserByUsername.mockResolvedValue({
-      ...testDbUser,
-      profile_picture: '/test_profile_picture',
-    });
+    mockedGetProfilePictureUrl.mockResolvedValue(
+      'localhost:3000/this_is_a_fake_url',
+    );
     render(
       <SidebarProvider>
         <AppSidebar />
@@ -216,7 +212,7 @@ describe('AppSidebar', () => {
     // specified pfp
     expect(await screen.findByRole('img')).toHaveAttribute(
       'src',
-      '/test_profile_picture',
+      'localhost:3000/this_is_a_fake_url',
     );
   });
 });

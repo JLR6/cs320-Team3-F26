@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
-import { getUserByUsername } from '@/lib/api/users';
+import { getProfilePictureUrl } from '@/lib/api/users';
 import { apiFetch } from '@/lib/api/client';
 
 import {
@@ -117,7 +117,7 @@ function loggedInData(username: string): SidebarData {
     navSubmenu: {
       title: 'My Families',
       items: [],
-      // noItemsMessage: 'You are not part of any LeetMeet families',
+      noItemsMessage: 'You are not part of any LeetMeet families',
       enabledActions: [ActionTypeSubmenu.CreateFamily],
     },
     user: {
@@ -453,9 +453,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     let active = true;
 
     void Promise.allSettled([
-      apiFetch<{ name: string }[]>('/user-families'),
-      getUserByUsername(username),
-    ]).then(([families, profile]) => {
+      apiFetch<{ name: string }[]>('/families'),
+      getProfilePictureUrl(authUser.id),
+    ]).then(([families, profilePicture]) => {
       if (!active) return;
       setSidebarData({
         username,
@@ -467,10 +467,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
               }))
             : [],
         profilePicture:
-          profile.status === 'fulfilled'
-            ? (profile.value.profile_picture ?? undefined)
+          profilePicture.status === 'fulfilled'
+            ? (profilePicture.value ?? undefined)
             : undefined,
-        failed: families.status === 'rejected' || profile.status === 'rejected',
+        failed:
+          families.status === 'rejected' ||
+          profilePicture.status === 'rejected',
       });
     });
 
