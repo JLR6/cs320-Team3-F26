@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   title: 'Reset password | LeetMeet',
 };
 
-export default function ForgotPassPage() {
+export default function PassResetPage() {
   return (
     <div className="flex min-h-screen w-full items-center justify-center">
       <AppCard className="w-109">
