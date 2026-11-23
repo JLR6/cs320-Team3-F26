@@ -1,6 +1,5 @@
 import SearchBar from '../../components/searchBar';
 
-// Routes /forgotPass to the ForgotPass component
-export default function ForgotPassPage() {
+export default function SearchBarPage() {
   return <SearchBar />;
 }

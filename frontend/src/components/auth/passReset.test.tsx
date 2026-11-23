@@ -62,7 +62,7 @@ describe('UpdatePassword', () => {
     expect(updateUser).not.toHaveBeenCalled();
   });
 
-  it('shows success and clears both fields when the passwords match', async () => {
+  it('succeeds when the passwords match', async () => {
     updateUser.mockResolvedValue({ error: null });
 
     const user = userEvent.setup();

@@ -44,7 +44,7 @@ export function UpdatePassword() {
 
       // logging out and redirecting to log in
       toast.success('Password changed!');
-      supabase.auth.signOut({ scope: 'local' });
+      await supabase.auth.signOut({ scope: 'local' });
       router.replace('/login');
       router.refresh();
     } catch {
