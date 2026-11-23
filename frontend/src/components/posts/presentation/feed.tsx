@@ -20,15 +20,22 @@ import { PostCard } from '../PostCard';
 import { PostFormDialog } from '../PostFormDialog';
 import { SearchBar } from '@/components/searchBar';
 
+type PostFilters = {
+  tags: string[];
+  difficulties: string[];
+  timeComplexities: string[];
+  q: string;
+  problemNumber?: number;
+};
+
 export function PostFeed() {
   const user = useCurrentUser();
   const [feed, setFeed] = useState<FeedType>('main');
-  const [filters, setFilters] = useState({
-    tags: [] as string[],
-    difficulties: [] as string[],
-    timeComplexities: [] as string[],
+  const [filters, setFilters] = useState<PostFilters>({
+    tags: [],
+    difficulties: [],
+    timeComplexities: [],
     q: '',
-    problemNumber: undefined as number | undefined,
   });
   const [posts, setPosts] = useState<Post[] | null>(null); // null = loading
   const [cursor, setCursor] = useState<string | null>(null);

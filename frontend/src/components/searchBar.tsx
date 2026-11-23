@@ -9,12 +9,10 @@ import { Button } from '@/components/ui/button';
 import { DIFFICULTIES } from '@/lib/constants'; // NEW: real difficulties
 import { getTags } from '@/lib/posts/posts-api'; // NEW: real tags from the backend
 
-// NEW: same list the post form uses, so the two can never drift apart.
+// same list the post form uses, so the two can never drift apart.
 // (Difficulty is stored on the problem, so it is a fixed list, not loaded.)
 const availableDifficulties = [...DIFFICULTIES];
 
-// TEMP!!! Mock time complexity options
-// MUST: Replace with available values from post data when connected with backend
 const availableComplexities = [
   'O(1)',
   'O(log n)',
