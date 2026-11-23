@@ -24,9 +24,9 @@
   --ring: #ffa116;
   --radius-sm: 6px;
   --radius-lg: 32px;
-  --text-sm: 14px;
-  --text-base: 16px;
-  --text-lg: 20px;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.25rem;
 
   /* LeetMeet-specific */
   --easy: #00b8a3;

@@ -13,7 +13,8 @@ export default defineConfig({
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
         // for explicitly visual components, unit tests only prove if they render or not which isn't valuable
-        'src/components/ui/**/*.{ts,tsx}', // Generated components, doesn't make sense to test them
+        'src/components/ui/**/!(edit-family).{ts,tsx}', // Visual primitives; edit-family has behavior worth testing
+        'src/components/ui/leaderboard.tsx', // Styling is checked on the calling page
         'src/app/providers.tsx', // tanstack boilerplate, not worth testing
         'src/components/ThemeProvider.tsx', // theme boilerplate, not worth testing
         // these are components that are more worth testing visually, not through unit tests

@@ -49,16 +49,16 @@ export function EditFamily(props: EditFamilyProps) {
     <Dialog.Root open={props.open} onOpenChange={props.onOpenChange}>
       <Dialog.Portal>
         <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10 backdrop-blur-[1px]" />
-        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 flex max-h-[min(540px,90dvh)] w-[368px] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl bg-background text-foreground shadow-lg outline-none">
-          <div className="flex shrink-0 items-center justify-between px-3 py-2.5">
-            <Dialog.Title className="text-[13px] font-bold">
+        <Dialog.Popup className="fixed top-1/2 left-1/2 z-50 flex max-h-[90dvh] w-[32rem] max-w-[calc(100vw-32px)] -translate-x-1/2 -translate-y-1/2 flex-col rounded-xl bg-background text-foreground shadow-lg outline-none">
+          <div className="flex shrink-0 items-center justify-between px-6 py-4">
+            <Dialog.Title className="text-lg font-bold">
               Edit Family
             </Dialog.Title>
             <Dialog.Close
-              render={<Button variant="ghost" size="icon-xs" />}
+              render={<Button variant="ghost" size="icon-sm" />}
               aria-label="Close edit family"
             >
-              <X className="size-3.5 text-muted-foreground" />
+              <X className="size-4 text-muted-foreground" />
             </Dialog.Close>
           </div>
           <EditFamilyBody key={props.data.family.id} {...props} />
@@ -92,8 +92,9 @@ function EditFamilyBody({
       .filter((admin) => admin.family_id === familyId)
       .map((admin) => admin.user_id),
   );
-  const isOwner = currentUserId === ownerId;
-  const canManage = isOwner || adminIds.has(currentUserId);
+  const hasOwner = data.members.some((member) => member.user_id === ownerId);
+  const isOwner = hasOwner && currentUserId === ownerId;
+  const canManage = hasOwner && (isOwner || adminIds.has(currentUserId));
   const managers = data.members
     .filter(
       (member) => member.user_id === ownerId || adminIds.has(member.user_id),
@@ -165,7 +166,7 @@ function EditFamilyBody({
     return (
       <div
         key={member.user_id}
-        className="flex min-h-[33px] items-center gap-2 px-1"
+        className="flex min-h-12 items-center gap-3 px-1"
       >
         <Avatar.Root className="relative size-7 shrink-0 overflow-hidden rounded-full bg-[#c4c4c4]">
           <Avatar.Image
@@ -188,7 +189,7 @@ function EditFamilyBody({
           {member.username}
         </span>
         {owner && (
-          <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-[8px] text-muted-foreground">
+          <span className="shrink-0 rounded bg-secondary px-1.5 py-0.5 text-sm text-muted-foreground">
             family owner
           </span>
         )}
@@ -197,15 +198,15 @@ function EditFamilyBody({
             (admin ? onDemoteAdmin : isOwner && onPromoteAdmin)) && (
             <Popover>
               <PopoverTriggerMore
-                className="m-0 ml-auto size-6 p-1 [&_svg]:size-3"
+                className="m-0 ml-auto size-8 p-1 [&_svg]:size-4"
                 aria-label={`Manage ${member.username}`}
                 disabled={busy}
               />
-              <PopoverContent className="w-[148px] gap-0" align="start">
+              <PopoverContent className="w-56 gap-0" align="start">
                 {isOwner && (admin ? onDemoteAdmin : onPromoteAdmin) && (
                   <PopoverMenuButton
                     disabled={busy}
-                    className="h-7 text-[10px] [&_svg]:size-3"
+                    className="min-h-9 text-sm [&_svg]:size-4"
                     onClick={() =>
                       void run(() =>
                         admin
@@ -223,7 +224,7 @@ function EditFamilyBody({
                 {onRemoveMember && (
                   <PopoverMenuButton
                     disabled={busy}
-                    className="h-7 text-[10px] [&_svg]:size-3"
+                    className="min-h-9 text-sm [&_svg]:size-4"
                     onClick={() =>
                       void run(() => onRemoveMember(familyId, member.user_id))
                     }
@@ -241,13 +242,19 @@ function EditFamilyBody({
 
   return (
     <div
-      className="overflow-y-auto px-3 pb-4 text-[10px] leading-4"
+      className="overflow-y-auto px-6 pb-6 text-base leading-normal"
       aria-busy={busy}
     >
       <div
         aria-hidden="true"
-        className="mx-auto mb-3 h-[114px] w-[114px] rounded-md border border-black/[0.025] bg-[#f5f5f5] dark:bg-secondary"
+        className="mx-auto mb-4 size-36 rounded-md border border-black/[0.025] bg-[#f5f5f5] dark:bg-secondary"
       />
+      {!hasOwner && (
+        <p role="alert" className="mb-4 text-destructive">
+          Family owner information is missing or inconsistent. Reload the family
+          before editing.
+        </p>
+      )}
       <label htmlFor={`${id}-name`} className="font-semibold">
         Family Name
       </label>
@@ -261,7 +268,7 @@ function EditFamilyBody({
         }}
         maxLength={100}
         disabled={busy || !canManage || !onUpdateFamily}
-        className="mt-0.5 mb-1.5 h-6 rounded-md border-border/50 text-[10px] md:text-[10px]"
+        className="mt-1 mb-4 h-10 rounded-md border-border text-base md:text-base"
       />
       <form
         onSubmit={(event) => {
@@ -278,8 +285,8 @@ function EditFamilyBody({
         <label htmlFor={`${id}-emails`} className="font-semibold">
           Invite Members
         </label>
-        <div className="mt-0.5 mb-1.5 rounded-md border border-border/50 p-2">
-          <div className="flex min-h-6 flex-wrap items-center gap-1 rounded-sm focus-within:ring-1 focus-within:ring-ring">
+        <div className="mt-1 mb-4 rounded-md border border-border p-3 focus-within:border-black dark:focus-within:border-foreground">
+          <div className="flex min-h-9 flex-wrap items-center gap-2 rounded-sm">
             {recipients.map((email) => (
               <span
                 key={email}
@@ -338,7 +345,7 @@ function EditFamilyBody({
               disabled={busy || !canManage}
               aria-invalid={!!emailError}
               aria-describedby={emailError ? `${id}-email-error` : undefined}
-              className="min-w-24 flex-1 bg-transparent py-0.5 outline-none placeholder:text-muted-foreground"
+              className="min-w-0 w-full flex-1 basis-48 border-0 bg-transparent py-1 text-base outline-none focus-visible:ring-0 placeholder:text-muted-foreground"
             />
           </div>
           {emailError && (
@@ -358,7 +365,7 @@ function EditFamilyBody({
               !onInvite ||
               (!emails.trim() && !recipients.length)
             }
-            className="mt-1 ml-auto flex h-[22px] rounded-md bg-[#91d9ac] px-4 text-[10px] font-semibold text-white hover:bg-[#7aca98] disabled:opacity-100"
+            className="mt-3 ml-auto flex min-h-9 rounded-md bg-[#91d9ac] px-4 text-sm font-semibold text-black hover:bg-[#7aca98] disabled:opacity-50"
           >
             Invite
           </Button>

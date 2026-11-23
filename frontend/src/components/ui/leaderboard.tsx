@@ -30,7 +30,7 @@ export interface LeaderboardMember {
 
 export interface LeaderboardData {
   family: { id: string; name: string };
-  owner: LeaderboardFamilyRole | null;
+  owner: LeaderboardFamilyRole;
   admins?: readonly LeaderboardFamilyRole[];
   members: readonly LeaderboardMember[];
 }
@@ -59,7 +59,7 @@ function Leaderboard({
   const [open, setOpen] = React.useState(false);
   const members = [...data.members].sort((a, b) => b.points - a.points);
   const owner =
-    data.owner?.family_id === data.family.id ? data.owner.user_id : null;
+    data.owner.family_id === data.family.id ? data.owner.user_id : null;
   const admins = new Set(
     data.admins
       ?.filter((admin) => admin.family_id === data.family.id)
@@ -73,7 +73,7 @@ function Leaderboard({
       data-slot="leaderboard"
       aria-label={`${data.family.name} leaderboard`}
       className={cn(
-        'w-full bg-background p-2 text-[10px] leading-4 text-black dark:text-foreground',
+        'w-full bg-background p-2 text-base leading-normal text-black dark:text-foreground',
         className,
       )}
       {...props}
@@ -82,7 +82,7 @@ function Leaderboard({
         <PopoverTrigger
           disabled={!onPeriodChange || periods.length < 2}
           render={<Button variant="ghost" />}
-          className="mb-4 h-3.5 gap-1 rounded-sm px-1 py-0 text-[10px] font-semibold disabled:opacity-100 [&_svg]:size-2.5"
+          className="mb-4 min-h-9 gap-2 rounded-sm px-2 py-1 text-sm font-semibold disabled:opacity-100 [&_svg]:size-4"
           aria-label={`Leaderboard period: ${periodLabel}`}
         >
           {periodLabel}
@@ -120,7 +120,7 @@ function Leaderboard({
             <li
               key={member.user_id}
               data-slot="leaderboard-row"
-              className="flex min-h-[38.5px] items-center gap-2 rounded-sm py-1 px-3 odd:bg-[#f9f9f9] dark:odd:bg-secondary/50"
+              className="flex min-h-14 items-center gap-2 rounded-sm py-1 px-3 odd:bg-[#f9f9f9] dark:odd:bg-secondary/50"
             >
               <span
                 className="min-w-3 shrink-0 font-semibold tabular-nums"
@@ -142,7 +142,7 @@ function Leaderboard({
                   <span className="absolute -bottom-1 left-1 h-4 w-5 rounded-t-full bg-white" />
                 </Avatar.Fallback>
               </Avatar.Root>
-              <div className="flex min-w-0 flex-1 items-center gap-2">
+              <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2">
                 <span
                   className="truncate font-semibold"
                   title={member.username}
@@ -152,11 +152,11 @@ function Leaderboard({
                 <span aria-hidden="true" className="text-[#808080]">
                   •
                 </span>
-                <span className="shrink-0 text-[#808080] dark:text-muted-foreground">
+                <span className="shrink-0 text-sm text-muted-foreground">
                   {role}
                 </span>
               </div>
-              <span className="ml-auto shrink-0 pr-1.5 font-semibold text-[#ff9500] tabular-nums dark:text-primary">
+              <span className="ml-auto shrink-0 pr-1.5 font-semibold text-[#a65f00] tabular-nums dark:text-primary">
                 {member.points} {member.points === 1 ? 'point' : 'points'}
               </span>
             </li>
