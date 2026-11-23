@@ -365,7 +365,7 @@ function EditFamilyBody({
               !onInvite ||
               (!emails.trim() && !recipients.length)
             }
-            className="mt-3 ml-auto flex min-h-9 rounded-md bg-[#91d9ac] px-4 text-sm font-semibold text-black hover:bg-[#7aca98] disabled:opacity-50"
+            className="mt-3 ml-auto flex min-h-9 rounded-md bg-[#2FB55D] px-4 text-sm font-semibold text-primary-foreground hover:bg-[#2FB55D]/80 disabled:opacity-50"
           >
             Invite
           </Button>
