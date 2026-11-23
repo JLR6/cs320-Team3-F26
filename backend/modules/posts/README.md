@@ -8,12 +8,13 @@ requirement for a Bearer token.
 | --- | --- | --- |
 | GET | `/posts` | A cursor-paginated page of posts, newest first (200) |
 | GET | `/posts/following` | A cursor-paginated page of posts from accounts the signed-in user follows (200) |
+| GET | `/posts/user/:userId` | A cursor-paginated page of one user's posts, newest first, e.g. for their profile (200; 400 if `userId` is not a UUID) |
 | GET | `/posts/:id` | One post (200) |
 | POST | `/posts` | Created post (201) |
 | PATCH | `/posts/:id` | Updated post (200) |
 | DELETE | `/posts/:id` | No response body (204) |
 
-The route `:id` identifies the `post_id` column. Both feeds, single-post lookups,
+The route `:id` identifies the `post_id` column, and `:userId` identifies the author's `user_id`. Both feeds, single-post lookups,
 and POST/PATCH responses include the UI fields `id`, `author`, `problemNumber`,
 `problemName`, `difficulty`, `problemLink`, `description`, `tags`, `timeComplexity`,
 `spaceComplexity`, `solutionUrl`, `likeCount`, `likedByMe`, `comments`, `createdAt`,
@@ -31,7 +32,7 @@ POST and PATCH save the row and then fetch its enriched response.
 
 ## Filtering posts by problem tags
 
-`GET /posts` and `GET /posts/following` accept an optional, repeated `tag` query parameter.
+`GET /posts`, `GET /posts/following`, and `GET /posts/user/:userId` accept an optional, repeated `tag` query parameter.
 
 ```http
 GET /posts?tag=Array
