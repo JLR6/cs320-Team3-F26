@@ -115,6 +115,7 @@ function PopoverTriggerMore({
     <PopoverTrigger
       render={
         <Button
+          aria-label="More"
           className={cn(
             'h-8 text-base w-fit mr-2 mt-2 ml-auto mb-1 p-2 rounded-full bg-transparent text-foreground hover:bg-secondary hover:text-secondary-foreground flex items-center overflow-hidden transition-[width,height,padding] disabled:pointer-events-none [&_svg]:size-4.5 [&_svg]:shrink-0 [&>span:last-child]:truncate',
             className,

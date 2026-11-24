@@ -7,6 +7,10 @@ import * as React from 'react';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useTheme } from 'next-themes';
+import { createClient } from '@/lib/supabase/client';
+import { useUser } from '@/hooks/use-user';
+import { getProfilePictureUrl } from '@/lib/api/users';
+import { apiFetch } from '@/lib/api/client';
 
 import {
   House,
@@ -18,6 +22,7 @@ import {
   LogOut,
   ChevronRight,
   Check,
+  type LucideIcon,
 } from 'lucide-react';
 
 import {
@@ -72,75 +77,82 @@ enum Theme {
   dark = 'Dark',
 }
 
-// Sample data that constructs the logged in sidebar
-const loggedInData = {
-  // The sidebar's navigation buttons (Home, Profile)
+// Structure of data that constructs the sidebar
+type SidebarData = {
+  navMain: {
+    title: string;
+    icon: LucideIcon;
+    url: string;
+  }[];
+  enabledActionsMain: ActionTypeMain[];
+  navSubmenu?: {
+    title: string;
+    items: { title: string; url: string }[];
+    noItemsMessage?: string;
+    enabledActions: ActionTypeSubmenu[];
+  };
+  user?: {
+    title: string;
+    profilePicture: string;
+    enabledActions: ActionTypeUser[];
+  };
+};
+
+// Data that constructs the logged in sidebar
+function loggedInData(username: string): SidebarData {
+  return {
+    navMain: [
+      {
+        title: 'Home',
+        icon: House,
+        url: '/',
+      },
+      {
+        title: 'Profile',
+        icon: UserRound,
+        url: `/profile/${username}`,
+      },
+    ],
+    enabledActionsMain: [ActionTypeMain.CreatePost],
+    navSubmenu: {
+      title: 'My Families',
+      items: [],
+      noItemsMessage: 'You are not part of any LeetMeet families',
+      enabledActions: [ActionTypeSubmenu.CreateFamily],
+    },
+    user: {
+      title: username,
+      profilePicture: 'https://assets.leetcode.com/users/default_avatar.jpg',
+      enabledActions: [
+        ActionTypeUser.Settings,
+        ActionTypeUser.Appearance,
+        ActionTypeUser.SignOut,
+      ],
+    },
+  };
+}
+
+// Data that constructs the logged out sidebar
+const loggedOutData: SidebarData = {
   navMain: [
     {
       title: 'Home',
       icon: House,
       url: '/',
     },
-    {
-      title: 'Profile',
-      icon: UserRound,
-      url: '/profile/this_is_a_sample_url',
-    },
   ],
-  // The sidebar's enabled actions (Create Post, Sign up, Log in)
-  enabledActionsMain: [ActionTypeMain.CreatePost],
-  // The sidebar's submenu (My Families)
-  navSubmenu: {
-    title: 'My Families',
-    items: [
-      {
-        title: 'CS320 Group 3',
-        url: '/family/this_is_a_sample_url',
-      },
-      {
-        title: 'LeetMeet Frontend',
-        url: '/family/this_is_another_sample_url',
-      },
-    ],
-    enabledActions: [ActionTypeSubmenu.CreateFamily],
-  },
-  // User information, if available
-  user: {
-    title: 'User Name',
-    profilePicture: 'https://assets.leetcode.com/users/default_avatar.jpg',
-    enabledActions: [
-      ActionTypeUser.Settings,
-      ActionTypeUser.Appearance,
-      ActionTypeUser.SignOut,
-    ],
-  },
+  enabledActionsMain: [ActionTypeMain.SignUp, ActionTypeMain.LogIn],
 };
-
-// Sample data that constructs the logged out sidebar
-// const loggedOutData = {
-//   navMain: [
-//     {
-//       title: 'Home',
-//       icon: House,
-//       url: '#',
-//     },
-//   ],
-//   enabledActionsMain: [ActionTypeMain.SignUp, ActionTypeMain.LogIn],
-// };
-
-// As there is currently no functionality, manually assign to preview either sidebar version
-// Later, data should be constructed by properly checking authentication and fetching information
-const data = loggedInData;
 
 /**
  * The SidebarMenu containing the main navigation (mapped from data.navMain)
  */
-function NavMain() {
+function NavMain({ data }: { data: SidebarData['navMain'] }) {
   const current = usePathname();
 
-  return data.navMain ? (
+  return data ? (
     <SidebarMenu>
-      {data.navMain.map((item) => {
+      {data.map((item) => {
         const LucideIcon = item.icon;
 
         return (
@@ -165,8 +177,8 @@ function NavMain() {
  */
 function SignUpButton() {
   return (
-    <SidebarMenuButton variant="primaryRound">
-      <Link href="/signup">{ActionTypeMain.SignUp}</Link>
+    <SidebarMenuButton variant="primaryRound" render={<Link href="/signup" />}>
+      {ActionTypeMain.SignUp}
     </SidebarMenuButton>
   );
 }
@@ -177,8 +189,8 @@ function SignUpButton() {
  */
 function LogInButton() {
   return (
-    <SidebarMenuButton variant="secondaryRound">
-      <Link href="/login">{ActionTypeMain.LogIn}</Link>
+    <SidebarMenuButton variant="secondaryRound" render={<Link href="/login" />}>
+      {ActionTypeMain.LogIn}
     </SidebarMenuButton>
   );
 }
@@ -215,10 +227,10 @@ function ActionMain(type: ActionTypeMain) {
 /**
  * The SidebarMenu containing the main actions (mapped from data.enabledActionsMain)
  */
-function ActionsMain() {
-  return data.enabledActionsMain ? (
+function ActionsMain({ data }: { data: SidebarData['enabledActionsMain'] }) {
+  return data.length ? (
     <SidebarMenu className="mt-1.5">
-      {data.enabledActionsMain.map((type) => {
+      {data.map((type) => {
         const Element = ActionMain(type);
         return (
           <SidebarMenuItem key={type} className="mt-0.5">
@@ -249,16 +261,14 @@ function ActionSubmenu(type: ActionTypeSubmenu) {
 /**
  * The Popover for submenu actions (mapped from data.navSubmenu.enabledActions)
  */
-function NavSubmenuPopover() {
-  return data.navSubmenu?.enabledActions ? (
+function NavSubmenuPopover({ data }: { data: ActionTypeSubmenu[] }) {
+  return data.length ? (
     <Popover>
       <PopoverTriggerDropdown>
         <Plus />
       </PopoverTriggerDropdown>
 
-      <PopoverContent>
-        {data.navSubmenu.enabledActions.map((type) => ActionSubmenu(type))}
-      </PopoverContent>
+      <PopoverContent>{data.map((type) => ActionSubmenu(type))}</PopoverContent>
     </Popover>
   ) : null;
 }
@@ -266,48 +276,51 @@ function NavSubmenuPopover() {
 /**
  * The SidebarGroup containing the submenu (mapped from data.navSubmenu)
  */
-function NavSubmenu() {
+function NavSubmenu({ data }: { data: SidebarData['navSubmenu'] }) {
   const current = usePathname();
 
-  return data.navSubmenu ? (
+  return data ? (
     <SidebarGroup className="px-4">
       <SidebarSeparator
         orientation="horizontal"
         className="mr-2 h-4 mt-5 mb-2.5"
       />
 
-      <Collapsible
-        key={data.navSubmenu.title}
-        defaultOpen
-        className="group/collapsible"
-      >
+      <Collapsible key={data.title} defaultOpen className="group/collapsible">
         {/*Submenu header*/}
         <SidebarGroupLabel className="group/label pr-0">
           {/* Title and collapse icon that shows on hover */}
           <CollapsibleTrigger className="w-full flex items-center gap-1">
             <ChevronDown className="h-3 w-3 -ml-4 opacity-0 transition-opacity group-hover/label:opacity-100" />
-            {data.navSubmenu.title}{' '}
+            {data.title}{' '}
           </CollapsibleTrigger>
 
           {/* Submenu actions popover */}
-          <NavSubmenuPopover />
+          <NavSubmenuPopover data={data.enabledActions} />
         </SidebarGroupLabel>
 
         {/* Collapsible list of submenu items, mapped from data.navSubmenu.items */}
         <SidebarGroupContent className="mt-1.5">
           <CollapsibleContent>
             <SidebarMenu className="px-0">
-              {data.navSubmenu.items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton
-                    size="sm"
-                    isActive={item.url === current}
-                    render={<Link href={item.url} />}
-                  >
-                    {item.title}
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {data.items?.length ? (
+                data.items.map((item) => (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton
+                      size="sm"
+                      isActive={item.url === current}
+                      render={<Link href={item.url} />}
+                    >
+                      {item.title}
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))
+              ) : (
+                <span className="px-2 text-muted-foreground">
+                  {' '}
+                  {data.noItemsMessage}{' '}
+                </span>
+              )}
             </SidebarMenu>
           </CollapsibleContent>
         </SidebarGroupContent>
@@ -365,12 +378,13 @@ function AppearancePopoverButton() {
 
 /**
  * The PopoverMenuButton for sign
- * TO DO: On click, signs the user out
+ * On click, signs the user out
  */
 function SignOutPopoverButton() {
   return (
-    // wire this to supabase signout when auth is ready
-    <PopoverMenuButton>
+    <PopoverMenuButton
+      onClick={() => createClient().auth.signOut({ scope: 'local' })}
+    >
       <LogOut className="h-4.5! w-4.5!" />
       {ActionTypeUser.SignOut}
     </PopoverMenuButton>
@@ -394,13 +408,11 @@ function ActionUser(type: ActionTypeUser) {
 /**
  * The popover for user actions, mapped from user.enabledActions
  */
-function UserActionsPopover() {
-  return data.user?.enabledActions ? (
+function UserActionsPopover({ actions }: { actions: ActionTypeUser[] }) {
+  return actions ? (
     <Popover>
       <PopoverTriggerMore />
-      <PopoverContent>
-        {data.user.enabledActions.map((type) => ActionUser(type))}
-      </PopoverContent>
+      <PopoverContent>{actions.map((type) => ActionUser(type))}</PopoverContent>
     </Popover>
   ) : null;
 }
@@ -408,17 +420,14 @@ function UserActionsPopover() {
 /**
  * The SidebarFooter (mapped from data.user)
  */
-function AppSidebarFooter() {
-  return data.user ? (
+function AppSidebarFooter({ data }: { data: SidebarData['user'] }) {
+  return data ? (
     <SidebarFooter>
       <SidebarMenu className="p-2">
         <SidebarMenuItem key="User" className="flex items-center w-full gap-3">
-          <img
-            src={data.user.profilePicture}
-            className="h-12 w-12 rounded-full"
-          />
-          <span className="font-semibold">{data.user.title}</span>
-          <UserActionsPopover />
+          <img src={data.profilePicture} className="h-12 w-12 rounded-full" />
+          <span className="font-semibold">{data.title}</span>
+          <UserActionsPopover actions={data.enabledActions} />
         </SidebarMenuItem>
       </SidebarMenu>
     </SidebarFooter>
@@ -426,6 +435,60 @@ function AppSidebarFooter() {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+  // authentication state
+  const authUser = useUser();
+  const username = authUser?.user_metadata.username;
+  const data = username ? loggedInData(username) : loggedOutData;
+
+  // data to be loaded for the logged in sidebar
+  const [sidebarData, setSidebarData] = React.useState<{
+    username: string;
+    families: { title: string; url: string }[];
+    profilePicture?: string;
+    failed: boolean;
+  }>();
+
+  React.useEffect(() => {
+    if (!username) return;
+    let active = true;
+
+    void Promise.allSettled([
+      apiFetch<{ name: string; id: string }[]>('/families'),
+      getProfilePictureUrl(authUser.id),
+    ]).then(([families, profilePicture]) => {
+      if (!active) return;
+      setSidebarData({
+        username,
+        families:
+          families.status === 'fulfilled'
+            ? families.value.map((family) => ({
+                title: family.name,
+                url: `/family/${family.id}`,
+              }))
+            : [],
+        profilePicture:
+          profilePicture.status === 'fulfilled'
+            ? (profilePicture.value ?? undefined)
+            : undefined,
+        failed:
+          families.status === 'rejected' ||
+          profilePicture.status === 'rejected',
+      });
+    });
+
+    return () => {
+      active = false;
+    };
+  }, [username, authUser?.id]);
+
+  const currentData =
+    username && sidebarData?.username === username ? sidebarData : undefined;
+  if (username && currentData) {
+    data.navSubmenu!.items = currentData.families;
+    if (currentData.profilePicture)
+      data.user!.profilePicture = currentData.profilePicture;
+  }
+
   return (
     <Sidebar {...props}>
       {/* Sidebar header, links to Home */}
@@ -446,13 +509,18 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
       {/* Sidebar content, contains navigation, actions, and submenu */}
       <SidebarContent>
-        <NavMain />
-        <ActionsMain />
-        <NavSubmenu />
+        <NavMain data={data.navMain} />
+        <ActionsMain data={data.enabledActionsMain} />
+        <NavSubmenu data={data.navSubmenu} />
+        {currentData?.failed && (
+          <p role="status" className="px-4 text-sm text-muted-foreground">
+            Could not load sidebar data. Please refresh to try again.
+          </p>
+        )}
       </SidebarContent>
 
       {/* Sidebar footer, displays user information if available */}
-      <AppSidebarFooter />
+      <AppSidebarFooter data={data.user} />
 
       {/* Rail controlling sidebar width */}
       {/* Presently just being used as a separator, with actual sidebar resizing disabled */}
