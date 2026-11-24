@@ -94,6 +94,30 @@ describe('CommentSection', () => {
 
     expect(api.setLiked).toHaveBeenCalledWith('comment', 'c1', true);
   });
+  // locks the heart until its request completes
+  it('disables a comment like while it is saving', async () => {
+    let finishLike!: () => void;
+    vi.mocked(api.setLiked).mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishLike = resolve;
+      }),
+    );
+    renderWithQuery(
+      <CommentSection
+        postId="p1"
+        userId="u1"
+        comments={[makeComment({ likeCount: 2 })]}
+      />,
+    );
+
+    const button = await screen.findByRole('button', { name: '2' });
+    await user.click(button);
+    await waitFor(() => expect(button).toBeDisabled());
+    expect(api.setLiked).toHaveBeenCalledTimes(1);
+
+    finishLike();
+    await waitFor(() => expect(button).not.toBeDisabled());
+  });
   // only the author sees edit and delete
   it('only the author sees edit and delete', () => {
     renderWithQuery(

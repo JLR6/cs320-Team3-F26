@@ -121,8 +121,7 @@ export function usePostActions() {
 
 // ---------- Likes ----------
 
-// Like/unlike a post. The heart and count change right away
-// (an "optimistic update") and are put back if the request fails.
+// like/unlike a post and keep every cached post view in sync
 export function usePostLike() {
   const qc = useQueryClient();
 
@@ -130,7 +129,7 @@ export function usePostLike() {
     mutationFn: (post: Post) => api.setLiked('post', post.id, !post.likedByMe),
 
     onMutate: async (post) => {
-      // stop in-flight refetches from overwriting the instant change
+      // stop older post responses from replacing the optimistic change
       await qc.cancelQueries({ queryKey: postKeys.all });
       const like = !post.likedByMe;
       patchPost(qc, post.id, (p) => ({
@@ -142,18 +141,20 @@ export function usePostLike() {
 
     onError: (e, post) => {
       const like = !post.likedByMe;
-      // Server already agreed, but our count may be off by one: reload it
+      // the server already has the requested state, so reload its count
       if (alreadyDone(e, like)) {
-        void qc.invalidateQueries({ queryKey: postKeys.all });
         return;
       }
-      // Undo the instant change
+      // undo the optimistic change when the server could not apply it
       patchPost(qc, post.id, (p) => ({
         ...p,
         likedByMe: !like,
         likeCount: Math.max(0, p.likeCount + (like ? -1 : 1)),
       }));
     },
+
+    // reload after every result so cached counts and liked states match the server
+    onSettled: () => qc.invalidateQueries({ queryKey: postKeys.all }),
   });
 }
 
@@ -176,28 +177,39 @@ export function useCommentLike(
   const mutation = useMutation({
     mutationFn: (like: boolean) => api.setLiked('comment', comment.id, like),
 
-    // Same instant update as posts: flip the heart and the count
+    // protect both values because the heart and count use different queries
     onMutate: async (like) => {
-      await qc.cancelQueries({ queryKey: postKeys.detail(postId) });
+      await Promise.all([
+        qc.cancelQueries({ queryKey: likedKey }),
+        qc.cancelQueries({ queryKey: postKeys.detail(postId) }),
+      ]);
       qc.setQueryData(likedKey, like);
       patchCommentCount(qc, postId, comment.id, like ? 1 : -1);
     },
 
     onError: (e, like) => {
       if (alreadyDone(e, like)) {
-        void qc.invalidateQueries({ queryKey: postKeys.detail(postId) });
         return;
       }
       qc.setQueryData(likedKey, !like);
       patchCommentCount(qc, postId, comment.id, like ? -1 : 1);
     },
+
+    // reload both sources after every result so a retry or another tab cannot leave stale data
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: likedKey }),
+        qc.invalidateQueries({ queryKey: postKeys.detail(postId) }),
+      ]),
   });
 
   const isLiked = liked.data ?? false;
   return {
     liked: isLiked,
-    toggle: () => mutation.mutate(!isLiked),
+    // the control is disabled while pending, and this guard also protects programmatic calls
+    toggle: () => !mutation.isPending && mutation.mutate(!isLiked),
     error: mutation.error,
+    isPending: mutation.isPending,
   };
 }
 

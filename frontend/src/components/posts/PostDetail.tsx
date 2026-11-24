@@ -155,6 +155,7 @@ export function PostDetail({ id }: { id: string }) {
           count={post.likeCount}
           liked={post.likedByMe}
           disabled={!user}
+          pending={like.isPending}
           onClick={handleLike}
         />
       </div>

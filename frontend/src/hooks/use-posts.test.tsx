@@ -138,6 +138,8 @@ describe('post hooks', () => {
     vi.mocked(api.hasLiked).mockResolvedValue(false);
     vi.mocked(api.setLiked).mockRejectedValue(new Error('down'));
     const { client, wrapper } = setup();
+    const cancel = vi.spyOn(client, 'cancelQueries');
+    const invalidate = vi.spyOn(client, 'invalidateQueries');
     const comment = makeComment({ likeCount: 2 });
     client.setQueryData(
       postKeys.detail('p1'),
@@ -152,9 +154,44 @@ describe('post hooks', () => {
     hook.result.current.toggle();
     // the failed mutation should restore the original count
     await waitFor(() => expect(hook.result.current.error).toBeTruthy());
+    // cancel the in-flight heart query before setting its optimistic value
+    expect(cancel).toHaveBeenCalledWith({
+      queryKey: postKeys.commentLiked('c1', 'u1'),
+    });
+    // refresh both cached values after the request settles
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: postKeys.commentLiked('c1', 'u1'),
+    });
+    expect(invalidate).toHaveBeenCalledWith({
+      queryKey: postKeys.detail('p1'),
+    });
     expect(
       client.getQueryData<Post>(postKeys.detail('p1'))?.comments[0].likeCount,
     ).toBe(2);
+  });
+
+  // ignore a second toggle while the first request is still pending
+  it('prevents overlapping comment likes', async () => {
+    vi.mocked(api.hasLiked).mockResolvedValue(false);
+    let finishLike!: () => void;
+    vi.mocked(api.setLiked).mockReturnValue(
+      new Promise<void>((resolve) => {
+        finishLike = resolve;
+      }),
+    );
+    const { wrapper } = setup();
+    const hook = renderHook(() => useCommentLike('p1', makeComment(), 'u1'), {
+      wrapper,
+    });
+
+    await waitFor(() => expect(api.hasLiked).toHaveBeenCalled());
+    hook.result.current.toggle();
+    await waitFor(() => expect(hook.result.current.isPending).toBe(true));
+    hook.result.current.toggle();
+    expect(api.setLiked).toHaveBeenCalledTimes(1);
+
+    finishLike();
+    await waitFor(() => expect(hook.result.current.isPending).toBe(false));
   });
 
   // refresh all post views after adding editing or deleting a comment

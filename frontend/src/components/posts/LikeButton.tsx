@@ -8,18 +8,20 @@ export function LikeButton({
   count,
   liked,
   disabled,
+  pending,
   onClick,
 }: {
   count: number;
   liked: boolean;
   disabled?: boolean;
+  pending?: boolean;
   onClick: () => void;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
+      disabled={disabled || pending}
       title={disabled ? 'Log in to like' : undefined}
       className="relative z-10 flex items-center gap-1 text-xs text-muted-foreground disabled:cursor-not-allowed"
     >

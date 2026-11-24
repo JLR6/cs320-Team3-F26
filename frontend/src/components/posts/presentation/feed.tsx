@@ -113,6 +113,7 @@ export function PostFeed() {
           post={post}
           isOwner={post.author.id === user?.id}
           canInteract={!!user}
+          isLiking={like.isPending}
           onLike={() => handleLike(post)}
           onEdit={() => setEditing(post)}
           onDelete={() => setDeleting(post)}

@@ -16,6 +16,7 @@ type Props = {
   post: Post;
   isOwner: boolean;
   canInteract: boolean;
+  isLiking?: boolean;
   onLike: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -27,6 +28,7 @@ export function PostCard({
   post,
   isOwner,
   canInteract,
+  isLiking,
   onLike,
   onEdit,
   onDelete,
@@ -88,6 +90,7 @@ export function PostCard({
             count={post.likeCount}
             liked={post.likedByMe}
             disabled={!canInteract}
+            pending={isLiking}
             onClick={onLike}
           />
         </div>
