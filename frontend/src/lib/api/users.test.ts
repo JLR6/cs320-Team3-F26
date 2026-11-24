@@ -31,6 +31,12 @@ describe('users api', () => {
     expect((await getUser('user1')).email).toBe('arjya@example.com');
   });
 
+  // the profile card reads the linked LeetCode username when the API sends it
+  it('getUser keeps leetcode_username when the API includes it', async () => {
+    apiFetch.mockResolvedValue({ ...user, leetcode_username: 'mling06' });
+    expect((await getUser('user1')).leetcode_username).toBe('mling06');
+  });
+
   // Zod validation should reject responses that do not match the user shape.
   it('getUser rejects a malformed response', async () => {
     apiFetch.mockResolvedValue({ user_id: 123 });

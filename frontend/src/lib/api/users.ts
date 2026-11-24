@@ -6,7 +6,9 @@ export const userSchema = z.object({
   username: z.string(),
   email: z.string().optional(), // only present on your own record
   profile_picture: z.string().nullable().optional(),
-  // add leetcode_username, created_at, and counts once the backend returns them
+  // shown on the profile card; optional until the backend stores it
+  leetcode_username: z.string().nullable().optional(),
+  // add created_at and counts once the backend returns them
 });
 export type User = z.infer<typeof userSchema>;
 
