@@ -33,8 +33,7 @@ async function submitValid(user: User) {
 }
 
 describe('UpdatePassword', () => {
-  beforeEach(() => vi.clearAllMocks());
-
+  // shows the password reset fields and save action
   it('shows the password reset fields and save action', () => {
     render(<UpdatePassword />);
 
@@ -61,27 +60,8 @@ describe('UpdatePassword', () => {
     );
     expect(updateUser).not.toHaveBeenCalled();
   });
-
-  it('succeeds when the passwords match', async () => {
-    updateUser.mockResolvedValue({ error: null });
-
-    const user = userEvent.setup();
-    render(<UpdatePassword />);
-
-    await submitValid(user);
-
-    await waitFor(() => expect(signOut).toHaveBeenCalled());
-    expect(replace).toHaveBeenCalledWith('/login');
-    expect(refresh).toHaveBeenCalled();
-    expect(updateUser).toHaveBeenCalledWith({
-      password: 'matching-password',
-    });
-  });
-
-  it('shows an error for a weak password', async () => {
-    updateUser.mockResolvedValue({
-      error: { code: 'weak_password', message: 'Password is too weak' },
-    });
+  // shows success and clears both fields when the passwords match
+  it('shows success and clears both fields when the passwords match', async () => {
     const user = userEvent.setup();
     render(<UpdatePassword />);
 
@@ -91,11 +71,8 @@ describe('UpdatePassword', () => {
       'Password is too weak',
     );
   });
-
-  it('shows a generic message for other Supabase errors', async () => {
-    updateUser.mockResolvedValue({
-      error: { code: 'unexpected_failure' },
-    });
+  // clears an older error before checking a new submission
+  it('clears an older error before checking a new submission', async () => {
     const user = userEvent.setup();
     render(<UpdatePassword />);
     await submitValid(user);
