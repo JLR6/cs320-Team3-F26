@@ -41,6 +41,7 @@ export async function updateSession(request: NextRequest) {
     !user &&
     request.nextUrl.pathname !== '/' &&
     request.nextUrl.pathname !== '/feed' &&
+    request.nextUrl.pathname !== '/family/demo/leaderboard' &&
     request.nextUrl.pathname !== '/login' &&
     request.nextUrl.pathname !== '/signup' &&
     request.nextUrl.pathname !== '/forgotPass' &&
