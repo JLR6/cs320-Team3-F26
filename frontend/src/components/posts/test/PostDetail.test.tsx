@@ -102,7 +102,10 @@ describe('PostDetail', () => {
   });
   // like updates the count right away and calls the backend
   it('like updates the count right away and calls the backend', async () => {
-    vi.mocked(api.getPostById).mockResolvedValue(makePost());
+    // the settled refresh returns the count and like state saved by the backend
+    vi.mocked(api.getPostById)
+      .mockResolvedValueOnce(makePost())
+      .mockResolvedValue(makePost({ likeCount: 4, likedByMe: true }));
     vi.mocked(api.setLiked).mockResolvedValue(undefined);
     renderDetail();
 

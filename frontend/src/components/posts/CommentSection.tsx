@@ -179,6 +179,7 @@ function CommentItem({
             count={comment.likeCount}
             liked={like.liked}
             disabled={!userId}
+            pending={like.isPending}
             onClick={like.toggle}
           />
         </div>

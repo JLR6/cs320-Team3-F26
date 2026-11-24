@@ -1,17 +1,18 @@
 'use client';
+
 import { useState } from 'react';
 import { Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { SearchBar } from '@/components/searchBar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { errorMessage } from '@/lib/utils';
 import { useCurrentUser } from '@/lib/client-utils';
 import { useFeed, usePostActions, usePostLike } from '@/hooks/use-posts';
+import { errorMessage } from '@/lib/utils';
 import type { FeedType, Post, PostInput } from '@/types/post';
 import { DeletePostDialog } from '../DeletePostDialog';
 import { PostCard } from '../PostCard';
 import { PostFormDialog } from '../PostFormDialog';
-import { SearchBar } from '@/components/searchBar';
 
 type PostFilters = {
   tags: string[];
@@ -75,7 +76,7 @@ export function PostFeed() {
         <div className="flex items-center justify-between">
           <Tabs
             value={feed}
-            onValueChange={(v: string) => setFeed(v as FeedType)}
+            onValueChange={(value: string) => setFeed(value as FeedType)}
           >
             <TabsList>
               <TabsTrigger value="main">Main</TabsTrigger>
@@ -122,6 +123,7 @@ export function PostFeed() {
             post={post}
             isOwner={post.author.id === user?.id}
             canInteract={!!user}
+            isLiking={like.isPending}
             onLike={() => handleLike(post)}
             onEdit={() => setEditing(post)}
             onDelete={() => setDeleting(post)}
@@ -144,6 +146,7 @@ export function PostFeed() {
               You&apos;ve reached the end of your feed
             </p>
           ))}
+
         <PostFormDialog
           open={creating}
           onOpenChange={setCreating}
