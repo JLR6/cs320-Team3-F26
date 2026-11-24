@@ -14,6 +14,7 @@ import { LeetCodeService } from '../problems/leetcode.service';
 import { ProblemsService } from '../problems/problems.service';
 import type { CreatePostDto, UpdatePostDto } from './dto/post-content.dto';
 import { encodePostCursor, type PostPagination } from './dto/post-pagination.dto';
+import type { PostFilters } from './dto/post-filters.dto';
 
 export interface PostRecord {
   post_id: string;
@@ -70,6 +71,10 @@ export interface PostsPage {
   hasMore: boolean;
 }
 
+// quote a value for PostgREST's in-list and array grammar,
+// escaping literal quotes and backslashes (same rule the tag filter uses).
+const quoteValue = (value: string) => `"${value.replace(/["\\]/g, character => `\\${character}`)}"`;
+
 @Injectable()
 export class PostsService {
   constructor(
@@ -82,16 +87,18 @@ export class PostsService {
     accessToken: string,
     tags: string[] = [],
     pagination?: PostPagination,
+    filters: PostFilters = {}, // difficulty, time complexity, keyword, tag mode
   ): Promise<PostsPage> {
-    return this.findPage('post_details', accessToken, tags, pagination);
+    return this.findPage('post_details', accessToken, tags, pagination, filters);
   }
 
   findFollowing(
     accessToken: string,
     tags: string[] = [],
     pagination?: PostPagination,
+    filters: PostFilters = {},
   ): Promise<PostsPage> {
-    return this.findPage('following_post_details', accessToken, tags, pagination);
+    return this.findPage('following_post_details', accessToken, tags, pagination, filters);
   }
 
   // One user's posts (for their profile page), newest first, with the same
@@ -102,7 +109,7 @@ export class PostsService {
     tags: string[] = [],
     pagination?: PostPagination,
   ): Promise<PostsPage> {
-    return this.findPage('post_details', accessToken, tags, pagination, userId);
+    return this.findPage('post_details', accessToken, tags, pagination, {}, userId);
   }
 
   private async findPage(
@@ -110,31 +117,68 @@ export class PostsService {
     accessToken: string,
     tags: string[],
     { cursor, limit }: PostPagination = { limit: 50 },
+    filters: PostFilters = {},
     authorId?: string, // only return posts written by this user
   ): Promise<PostsPage> {
     const client = this.supabase.forUser(accessToken);
+
+    // "all" needs every selected tag on the problem, so it filters the view's own
+    // `tags` array (below). "any" (the default) keeps the original join untouched.
+    const matchAllTags = tags.length > 0 && filters.tagMode === 'all';
+    const joinTags = tags.length > 0 && !matchAllTags;
 
     // PostgREST follows the problem_tags junction. The separate filter embed
     // lets us return every tag on each matching problem.
     let query = client
       .from(source)
       .select(
-        tags.length > 0
+        joinTags
           ? '*, problems!inner(tags(tag_name), matching_tags:tags!inner())'
           : '*',
       );
 
-    if (authorId) {
+   if (authorId) {
       query = query.eq('user_id', authorId);
     }
-
-    if (tags.length > 0) {
-      // Quote each name for PostgREST's in-list grammar, including literal quotes and backslashes.
+    if (joinTags) {
       const tagNames = tags.map(tag => {
         const escaped = tag.replace(/["\\]/g, character => `\\${character}`);
         return `"${escaped}"`;
       });
       query = query.filter('problems.matching_tags.tag_name', 'in', `(${tagNames.join(',')})`);
+    }
+
+    // filters. They read columns of the post_details view, so they also work
+    // for the following feed. Different filters combine with AND.
+
+    // Every selected tag (AND). post_details.tags lists all of the problem's tags;
+    // "cs" means "contains all of these".
+    if (matchAllTags) {
+      query = query.filter('tags', 'cs', `{${tags.map(quoteValue).join(',')}}`);
+    }
+
+    // Any selected difficulty (OR). Difficulty comes from the problem.
+    if (filters.difficulties?.length) {
+      query = query.filter('difficulty', 'in', `(${filters.difficulties.map(quoteValue).join(',')})`);
+    }
+
+    // Any selected time complexity (OR). This is what the post's author wrote.
+    if (filters.timeComplexities?.length) {
+      query = query.filter(
+        'user_time_complexity',
+        'in',
+        `(${filters.timeComplexities.map(quoteValue).join(',')})`,
+      );
+    }
+
+    // Keyword in the post description, case-insensitive. % and _ are LIKE wildcards,
+    // so escape them (and the backslash) to match what the user typed literally.
+    if (filters.q) {
+      query = query.ilike('post_description', `%${filters.q.replace(/[\\%_]/g, '\\$&')}%`);
+    }
+
+    if (filters.problemNumber !== undefined) {
+      query = query.eq('problem_number', filters.problemNumber);
     }
 
     if (cursor) {
