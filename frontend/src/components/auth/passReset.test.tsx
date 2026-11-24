@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { UpdatePassword } from './PassResetForm';
 import { toast } from 'sonner';
 
@@ -33,8 +33,13 @@ async function submitValid(user: User) {
 }
 
 describe('UpdatePassword', () => {
-  beforeEach(() => vi.clearAllMocks());
+  beforeEach(() => {
+    // start every test with a successful password update response
+    vi.clearAllMocks();
+    updateUser.mockResolvedValue({ error: null });
+  });
 
+  // shows the password reset fields and save action
   it('shows the password reset fields and save action', () => {
     render(<UpdatePassword />);
 
@@ -61,43 +66,36 @@ describe('UpdatePassword', () => {
     );
     expect(updateUser).not.toHaveBeenCalled();
   });
-  it('succeeds when the passwords match', async () => {
-    updateUser.mockResolvedValue({ error: null });
-
+  // updates the password and returns the user to login
+  it('updates the password when the passwords match', async () => {
     const user = userEvent.setup();
     render(<UpdatePassword />);
 
     await submitValid(user);
 
-    await waitFor(() => expect(signOut).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(toast.success).toHaveBeenCalledWith('Password changed!'),
+    );
+    expect(updateUser).toHaveBeenCalledWith({ password: 'matching-password' });
+    expect(signOut).toHaveBeenCalledWith({ scope: 'local' });
     expect(replace).toHaveBeenCalledWith('/login');
     expect(refresh).toHaveBeenCalled();
-    expect(updateUser).toHaveBeenCalledWith({
-      password: 'matching-password',
-    });
   });
-  it('shows an error for a weak password', async () => {
-    updateUser.mockResolvedValue({
-      error: { code: 'weak_password', message: 'Password is too weak' },
-    });
+  // shows weak-password and generic server responses
+  it('shows server errors from failed password updates', async () => {
+    updateUser
+      .mockResolvedValueOnce({
+        error: { code: 'weak_password', message: 'Password is too weak' },
+      })
+      .mockResolvedValueOnce({ error: { code: 'unexpected' } });
     const user = userEvent.setup();
     render(<UpdatePassword />);
-
     await submitValid(user);
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Password is too weak',
     );
-  });
-
-  it('shows a generic message for other Supabase errors', async () => {
-    updateUser.mockResolvedValue({
-      error: { code: 'unexpected_failure' },
-    });
-    const user = userEvent.setup();
-    render(<UpdatePassword />);
-    await submitValid(user);
-
+    await user.click(screen.getByRole('button', { name: 'Save' }));
     await waitFor(() =>
       expect(toast.error).toHaveBeenCalledWith(
         'Could not update password. Please try again.',
