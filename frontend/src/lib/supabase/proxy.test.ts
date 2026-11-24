@@ -52,14 +52,19 @@ describe('updateSession', () => {
   });
 
   // public routes remain accessible without authentication
-  it.each(['/', '/login', '/signup', '/callback', '/forgotPass', '/feed'])(
-    'lets logged-out users view %s',
-    async (path) => {
-      loggedOut();
-      const res = await run(path);
-      expect(res.headers.get('location')).toBeNull();
-    },
-  );
+  it.each([
+    '/',
+    '/login',
+    '/signup',
+    '/callback',
+    '/forgotPass',
+    '/feed',
+    '/family/demo/leaderboard',
+  ])('lets logged-out users view %s', async (path) => {
+    loggedOut();
+    const res = await run(path);
+    expect(res.headers.get('location')).toBeNull();
+  });
 
   // authenticated users visiting an auth page should continue to the dashboard
   it.each(['/login', '/signup'])(
