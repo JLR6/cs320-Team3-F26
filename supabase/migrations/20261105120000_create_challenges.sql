@@ -90,18 +90,29 @@ CREATE TRIGGER check_challenge_problem_order
 ------------------------------------------------------------------------------------------
 ALTER TABLE public.challenges ENABLE ROW LEVEL SECURITY;
 
+-- Every policy is limited to logged-in users (TO authenticated). The family helper
+-- functions can only be run by authenticated (EXECUTE is revoked from anon in
+-- 20261029120000_family_endpoints.sql), so a policy without a role would make logged-out
+-- requests fail with "permission denied for function" instead of simply seeing nothing.
+-- Logged-out users also get no table privileges at all.
+REVOKE ALL ON public.challenges FROM anon;
+
 CREATE POLICY "Family members can see challenges" ON public.challenges FOR SELECT
+    TO authenticated
     USING (public.is_family_member(family_id));
 
 -- created_by must be the person creating it, so nobody can create one "as" someone else.
 CREATE POLICY "Owner and admins can create challenges" ON public.challenges FOR INSERT
+    TO authenticated
     WITH CHECK (public.is_family_manager(family_id) AND created_by = auth.uid());
 
 CREATE POLICY "Owner and admins can update challenges" ON public.challenges FOR UPDATE
+    TO authenticated
     USING (public.is_family_manager(family_id))
     WITH CHECK (public.is_family_manager(family_id));
 
 CREATE POLICY "Owner and admins can delete challenges" ON public.challenges FOR DELETE
+    TO authenticated
     USING (public.is_family_manager(family_id));
 
 -- A challenge can't be moved to another family, and its creator can't be changed.
