@@ -2,8 +2,11 @@
 import { Heart } from 'lucide-react';
 import { formatCount } from '@/lib/utils';
 import { cn } from '@/lib/utils';
+import { useLoginWall } from '@/components/auth/LoginWallProvider';
 
-// Heart + count. Orange when liked. Disabled when logged out.
+// Heart + count. Orange when liked.
+// Logged out (disabled): clicking opens the "Sign up or log in" popup when the
+// page has one; otherwise the button is just disabled.
 export function LikeButton({
   count,
   liked,
@@ -15,11 +18,14 @@ export function LikeButton({
   disabled?: boolean;
   onClick: () => void;
 }) {
+  const loginWall = useLoginWall();
+  const showLoginWall = disabled && loginWall !== null;
+
   return (
     <button
       type="button"
-      onClick={onClick}
-      disabled={disabled}
+      onClick={showLoginWall ? () => loginWall?.openLoginWall() : onClick}
+      disabled={disabled && !showLoginWall}
       title={disabled ? 'Log in to like' : undefined}
       className="relative z-10 flex items-center gap-1 text-xs text-muted-foreground disabled:cursor-not-allowed"
     >
