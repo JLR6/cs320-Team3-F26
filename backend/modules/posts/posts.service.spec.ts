@@ -9,17 +9,41 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { SupabaseService } from '../../src/integrations/supabase/supabase.service';
 import { PostsService } from './posts.service';
+import { ProblemsService } from '../problems/problems.service';
+import { LeetCodeService } from '../problems/leetcode.service';
 import { parsePostPagination } from './dto/post-pagination.dto';
 
 describe('PostsService', () => {
   const fetchMock = vi.fn<typeof fetch>();
   let service: PostsService;
 
+  const problemsMock = {
+    findOne: vi.fn(),
+    findOrCreate: vi.fn(),
+  };
+
+  const leetcodeMock = {
+    fetchProblemBySlug: vi.fn(),
+  };
+
   beforeEach(() => {
     vi.stubEnv('SUPABASE_URL', 'http://127.0.0.1:54321');
     vi.stubEnv('SUPABASE_ANON_KEY', 'test-anon-key');
     vi.stubGlobal('fetch', fetchMock);
-    service = new PostsService(new SupabaseService());
+    problemsMock.findOne.mockReset();
+    problemsMock.findOrCreate.mockReset();
+    leetcodeMock.fetchProblemBySlug.mockReset();
+
+    problemsMock.findOne.mockResolvedValue({
+      problem_number: 1,
+      problem_title: 'Two Sum',
+    });
+
+    service = new PostsService(
+      new SupabaseService(),
+      problemsMock as unknown as ProblemsService,
+      leetcodeMock as unknown as LeetCodeService,
+    );
   });
 
   afterEach(() => {
@@ -39,7 +63,7 @@ describe('PostsService', () => {
     expect(fetchMock).toHaveBeenCalledOnce();
     const [input, options] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
-    expect(url.pathname).toBe('/rest/v1/posts');
+    expect(url.pathname).toBe('/rest/v1/post_details');
     expect(url.searchParams.get('select')).toBe('*');
     expect(url.searchParams.get('limit')).toBe('51');
     expect(url.searchParams.get('order')).toBe('created_at.desc.nullslast,post_id.desc');
@@ -47,34 +71,40 @@ describe('PostsService', () => {
     expect(url.searchParams.has('created_at')).toBe(false);
     expect(url.searchParams.has('post_id')).toBe(false);
     expect(url.searchParams.has('offset')).toBe(false);
-    expect(url.searchParams.has('problems.problem_tags')).toBe(false);
+    expect(url.searchParams.has('problems.matching_tags.tag_name')).toBe(false);
     expect(new Headers(options?.headers).get('authorization')).toBe(
       'Bearer user-access-token',
     );
   });
 
   it.each([
-    { tags: ['Array'] },
-    { tags: ['Array', 'Hash Table'] },
-  ])('uses an inner join and any-tag overlap for %j', async ({ tags }) => {
-    const posts = [{
-      post_id: 'post-1',
-      post_description: 'A matching post',
-      problems: { problem_tags: [tags[0]] },
-    }];
-    fetchMock.mockResolvedValueOnce(Response.json(posts));
+    { tags: ['Array'], filter: 'in.("Array")' },
+    { tags: ['Array', 'Hash Table'], filter: 'in.("Array","Hash Table")' },
+    {
+      tags: ['Set, Map (Advanced)', String.raw`Path\to "Graph"`],
+      filter: String.raw`in.("Set, Map (Advanced)","Path\\to \"Graph\"")`,
+    },
+  ])('filters by any selected tag and returns all tags for %j', async ({ tags, filter }) => {
+    const post = { post_id: 'post-1', post_description: 'A matching post' };
+    fetchMock.mockResolvedValueOnce(Response.json([{
+      ...post,
+      problems: { tags: [{ tag_name: tags[0] }, { tag_name: 'Sorting' }] },
+    }]));
 
     await expect(service.findAll('user-access-token', tags)).resolves.toEqual({
-      posts, nextCursor: null, hasMore: false,
+      posts: [{ ...post, problems: { problem_tags: [tags[0], 'Sorting'] } }],
+      nextCursor: null,
+      hasMore: false,
     });
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [input, options] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
-    expect(url.pathname).toBe('/rest/v1/posts');
-    expect(url.searchParams.get('select')).toBe('*,problems!inner(problem_tags)');
-    // "ov" matches any selected array element; "cs" would require every tag.
-    expect(url.searchParams.get('problems.problem_tags')).toBe(`ov.{${tags.join(',')}}`);
+    expect(url.pathname).toBe('/rest/v1/post_details');
+    expect(url.searchParams.get('select')).toBe(
+      '*,problems!inner(tags(tag_name),matching_tags:tags!inner())',
+    );
+    expect(url.searchParams.get('problems.matching_tags.tag_name')).toBe(filter);
     expect(url.searchParams.get('order')).toBe('created_at.desc.nullslast,post_id.desc');
     expect(url.searchParams.get('limit')).toBe('51');
     expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-access-token');
@@ -88,7 +118,7 @@ describe('PostsService', () => {
     const [input] = fetchMock.mock.calls[0];
     const url = new URL(String(input));
     expect(url.searchParams.get('select')).toBe('*');
-    expect(url.searchParams.has('problems.problem_tags')).toBe(false);
+    expect(url.searchParams.has('problems.matching_tags.tag_name')).toBe(false);
   });
 
   it('returns an empty final page when no posts match the selected tags', async () => {
@@ -96,6 +126,26 @@ describe('PostsService', () => {
     await expect(service.findAll('user-token', ['Graph'])).resolves.toEqual({
       posts: [], nextCursor: null, hasMore: false,
     });
+  });
+
+  it('queries followed authors with the user token and the shared tag filter', async () => {
+    const post = { post_id: 'post-1', post_description: 'A matching post' };
+    fetchMock.mockResolvedValueOnce(Response.json([{
+      ...post, problems: { tags: [{ tag_name: 'Array' }, { tag_name: 'Sorting' }] },
+    }]));
+
+    await expect(service.findFollowing('user-token', ['Array', 'Hash Table'])).resolves.toEqual({
+      posts: [{ ...post, problems: { problem_tags: ['Array', 'Sorting'] } }],
+      nextCursor: null,
+      hasMore: false,
+    });
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    const [input, options] = fetchMock.mock.calls[0];
+    const url = new URL(String(input));
+    expect(url.pathname).toBe('/rest/v1/following_post_details');
+    expect(url.searchParams.get('problems.matching_tags.tag_name')).toBe('in.("Array","Hash Table")');
+    expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
   });
 
   it('hides database errors when filtering by tags', async () => {
@@ -195,18 +245,22 @@ describe('PostsService', () => {
 
     it('keeps any-tag filtering and nested problem tags when continuing a page', async () => {
       const cursor = { created_at: timestamp, post_id: rows[0].post_id };
+      fetchMock.mockResolvedValueOnce(Response.json(rows.slice(1).map(post => ({
+        ...post, problems: { tags: [{ tag_name: 'Array' }, { tag_name: 'Hash Table' }] },
+      }))));
       const filteredPosts = rows.slice(1).map(post => ({
         ...post, problems: { problem_tags: ['Array', 'Hash Table'] },
       }));
-      fetchMock.mockResolvedValueOnce(Response.json(filteredPosts));
 
       await expect(service.findAll('user-token', ['Array', 'Hash Table'], { cursor, limit: 2 }))
         .resolves.toEqual({ posts: filteredPosts, nextCursor: null, hasMore: false });
 
       const [input, options] = fetchMock.mock.calls[0];
       const url = new URL(String(input));
-      expect(url.searchParams.get('select')).toBe('*,problems!inner(problem_tags)');
-      expect(url.searchParams.get('problems.problem_tags')).toBe('ov.{Array,Hash Table}');
+      expect(url.searchParams.get('select')).toBe(
+        '*,problems!inner(tags(tag_name),matching_tags:tags!inner())',
+      );
+      expect(url.searchParams.get('problems.matching_tags.tag_name')).toBe('in.("Array","Hash Table")');
       expect(url.searchParams.get('or')).toBe(
         `(created_at.lt.${timestamp},and(created_at.eq.${timestamp},post_id.lt.${cursor.post_id}),created_at.is.null)`,
       );
@@ -290,6 +344,30 @@ describe('PostsService', () => {
     problem_number: 1,
     post_description: 'A coding problem',
     created_at: '2026-10-14T00:00:00Z',
+    id: '11111111-1111-4111-8111-111111111111',
+    author: {
+      id: '22222222-2222-4222-8222-222222222222', username: 'Author', profilePicture: null,
+    },
+    problemNumber: 1,
+    problemName: 'Two Sum',
+    problemLink: 'https://leetcode.com/problems/two-sum/',
+    difficulty: 'Easy',
+    description: 'A coding problem',
+    tags: ['Array', 'Hash Table'],
+    timeComplexity: 'O(n)',
+    spaceComplexity: 'O(1)',
+    solutionUrl: null,
+    likeCount: 1,
+    likedByMe: true,
+    comments: [{
+      id: '33333333-3333-4333-8333-333333333333',
+      postId: '11111111-1111-4111-8111-111111111111',
+      author: { id: '44444444-4444-4444-8444-444444444444', username: 'Reader', profilePicture: null },
+      text: 'A comment', likeCount: 0,
+      createdAt: '2026-10-14T00:00:00Z', updatedAt: '2026-10-14T00:00:00Z',
+    }],
+    createdAt: '2026-10-14T00:00:00Z',
+    updatedAt: '2026-10-14T00:00:00Z',
   };
 
   it('fetches one post by its ID', async () => {
@@ -301,16 +379,19 @@ describe('PostsService', () => {
 
   it('creates a post without accepting an author from the caller', async () => {
     mockUser();
-    fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }));
+    fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }))
+      .mockResolvedValueOnce(Response.json([post]));
     await expect(service.create('user-token', { problem_number: 1, post_description: post.post_description })).resolves.toEqual(post);
     const [, options] = fetchMock.mock.calls[1];
     expect(options?.method).toBe('POST');
     expect(JSON.parse(String(options?.body))).toEqual({ problem_number: 1, post_description: post.post_description, user_id: post.user_id });
     expect(new Headers(options?.headers).get('authorization')).toBe('Bearer user-token');
+    expect(new URL(String(fetchMock.mock.calls[2][0])).pathname).toBe('/rest/v1/post_details');
   });
 
   it('updates only the requested post content', async () => {
-    fetchMock.mockResolvedValueOnce(Response.json({ ...post, post_description: 'Updated' }));
+    fetchMock.mockResolvedValueOnce(Response.json({ ...post, post_description: 'Updated' }))
+      .mockResolvedValueOnce(Response.json([{ ...post, post_description: 'Updated' }]));
     await expect(service.update('user-token', post.post_id, { post_description: 'Updated' }))
       .resolves.toEqual({ ...post, post_description: 'Updated' });
     const [input, options] = fetchMock.mock.calls[0];
@@ -319,6 +400,7 @@ describe('PostsService', () => {
     expect(JSON.parse(String(options?.body))).toEqual({
       post_description: 'Updated', updated_at: expect.any(String),
     });
+    expect(new URL(String(fetchMock.mock.calls[1][0])).pathname).toBe('/rest/v1/post_details');
   });
 
   it('deletes only the requested post', async () => {
@@ -370,5 +452,121 @@ describe('PostsService', () => {
   it('returns 409 when likes or comments prevent deletion', async () => {
     fetchMock.mockResolvedValueOnce(Response.json({ code: '23503', message: 'Foreign key violation' }, { status: 409 }));
     await expect(service.remove('user-token', post.post_id)).rejects.toBeInstanceOf(ConflictException);
+  });
+
+  describe('LeetCode lookup when creating posts', () => {
+    const twoSum = {
+      problem_number: 1,
+      problem_link: 'https://leetcode.com/problems/two-sum/',
+      problem_title: 'Two Sum',
+      problem_difficulty: 'Easy',
+      problem_tags: ['Array', 'Hash Table'],
+    };
+
+    it('uses existing problems without fetching from LeetCode', async () => {
+      mockUser();
+      fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }))
+      .mockResolvedValueOnce(Response.json([post]));
+      await expect(service.create('user-token', {
+        problem_number: 1,
+        problem_slug: 'two-sum',
+        post_description: post.post_description,
+      })).resolves.toEqual(post);
+      expect(problemsMock.findOne).toHaveBeenCalledWith(1);
+      expect(leetcodeMock.fetchProblemBySlug).not.toHaveBeenCalled();
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+    });
+
+    it('imports a missing problem before creating a post', async () => {
+      // pretend Two Sum isn't in our database yet
+      problemsMock.findOne.mockRejectedValueOnce(
+        new NotFoundException('Problem not found'),
+      );
+      leetcodeMock.fetchProblemBySlug.mockResolvedValueOnce(twoSum);
+      problemsMock.findOrCreate.mockResolvedValueOnce(twoSum);
+
+      mockUser();
+      fetchMock.mockResolvedValueOnce(Response.json(post, { status: 201 }))
+      .mockResolvedValueOnce(Response.json([post]));
+      await expect(service.create('user-token', {
+        problem_number: 1,
+        problem_slug: 'two-sum',
+        post_description: post.post_description,
+      })).resolves.toEqual(post);
+
+      expect(leetcodeMock.fetchProblemBySlug).toHaveBeenCalledWith('two-sum');
+      expect(problemsMock.findOrCreate).toHaveBeenCalledWith(twoSum);
+
+      // make sure we don't save problem_slug in the posts table
+      expect(fetchMock).toHaveBeenCalledTimes(3);
+      const [input, options] = fetchMock.mock.calls[1];
+      expect(new URL(String(input)).pathname).toBe('/rest/v1/posts');
+      expect(options?.method).toBe('POST');
+      const body = JSON.parse(String(options?.body));
+      expect(body).toEqual({
+        problem_number: 1,
+        post_description: post.post_description,
+        user_id: post.user_id,
+      });
+    });
+
+    it('rejects missing problems without a slug', async () => {
+      problemsMock.findOne.mockRejectedValueOnce(
+        new NotFoundException('Problem not found'),
+      );
+      mockUser();
+      await expect(service.create('user-token', {
+        problem_number: 1,
+      })).rejects.toThrow('Problem not found. Include problem_slug');
+      expect(leetcodeMock.fetchProblemBySlug).not.toHaveBeenCalled();
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('rejects a slug that has the wrong problem number', async () => {
+      problemsMock.findOne.mockRejectedValueOnce(
+        new NotFoundException('Problem not found'),
+      );
+      // Two Sum is #1, but the post is asking for#200
+      leetcodeMock.fetchProblemBySlug.mockResolvedValueOnce(twoSum);
+      mockUser();
+      await expect(service.create('user-token', {
+        problem_number: 200,
+        problem_slug: 'two-sum',
+      })).rejects.toThrow('problem_slug does not match problem_number');
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('does not create a post if the LeetCode API fails', async () => {
+      problemsMock.findOne.mockRejectedValueOnce(
+        new NotFoundException('Problem not found'),
+      );
+      leetcodeMock.fetchProblemBySlug.mockRejectedValueOnce(
+        new Error('LeetCode API unavailable'),
+      );
+      mockUser();
+      await expect(service.create('user-token', {
+        problem_number: 1,
+        problem_slug: 'two-sum',
+      })).rejects.toThrow('LeetCode API unavailable');
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
+
+    it('does not create a post if the database lookup fails', async () => {
+      problemsMock.findOne.mockRejectedValueOnce(
+        new InternalServerErrorException('Unable to fetch problem'),
+      );
+      mockUser();
+      await expect(service.create('user-token', {
+        problem_number: 1,
+        problem_slug: 'two-sum',
+      })).rejects.toBeInstanceOf(InternalServerErrorException);
+      expect(leetcodeMock.fetchProblemBySlug).not.toHaveBeenCalled();
+      expect(problemsMock.findOrCreate).not.toHaveBeenCalled();
+      expect(fetchMock).toHaveBeenCalledOnce();
+    });
   });
 });
