@@ -17,6 +17,7 @@ import {
 import { PostsService } from './posts.service';
 import { parseCreatePost, parseUpdatePost } from './dto/post-content.dto';
 import { parsePostPagination } from './dto/post-pagination.dto';
+import { parsePostFilters } from './dto/post-filters.dto'; // NEW: difficulty, time_complexity, q, tag_mode
 
 @Controller('posts')
 export class PostsController {
@@ -28,12 +29,26 @@ export class PostsController {
     @Query('tag') tag?: unknown,
     @Query('cursor') cursor?: unknown,
     @Query('limit') limit?: unknown,
+    // NEW search filters (all optional)
+    @Query('difficulty') difficulty?: unknown,
+    @Query('time_complexity') timeComplexity?: unknown,
+    @Query('q') q?: unknown,
+    @Query('tag_mode') tagMode?: unknown,
+    @Query('problem_number') problemNumber?: unknown,
   ) {
     const tags = this.parseTags(tag);
+    // return this.postsService.findAll(
+    //   this.accessToken(authorization),
+    //   tags,
+    //   parsePostPagination(cursor, limit),
+    // );
+    // NEW: filters are only passed along when the request has some
+    const filters = parsePostFilters(difficulty, timeComplexity, q, tagMode, problemNumber);
     return this.postsService.findAll(
       this.accessToken(authorization),
       tags,
       parsePostPagination(cursor, limit),
+      ...(filters ? [filters] : []),
     );
   }
 
@@ -43,10 +58,43 @@ export class PostsController {
     @Query('tag') tag?: unknown,
     @Query('cursor') cursor?: unknown,
     @Query('limit') limit?: unknown,
+    // NEW search filters (all optional)
+    @Query('difficulty') difficulty?: unknown,
+    @Query('time_complexity') timeComplexity?: unknown,
+    @Query('q') q?: unknown,
+    @Query('tag_mode') tagMode?: unknown,
+    @Query('problem_number') problemNumber?: unknown,
   ) {
     const tags = this.parseTags(tag);
+    // return this.postsService.findFollowing(
+    //   this.accessToken(authorization),
+    //   tags,
+    //   parsePostPagination(cursor, limit),
+    // );
+    // NEW: filters are only passed along when the request has some
+    const filters = parsePostFilters(difficulty, timeComplexity, q, tagMode, problemNumber);
     return this.postsService.findFollowing(
       this.accessToken(authorization),
+      tags,
+      parsePostPagination(cursor, limit),
+      ...(filters ? [filters] : []),
+    );
+  }
+
+  // A single user's posts, e.g. for their profile page.
+  // Declared before ':id' so "user" is never treated as a post ID.
+  @Get('user/:userId')
+  findByUser(
+    @Param('userId', new ParseUUIDPipe()) userId: string,
+    @Headers('authorization') authorization?: string,
+    @Query('tag') tag?: unknown,
+    @Query('cursor') cursor?: unknown,
+    @Query('limit') limit?: unknown,
+  ) {
+    const tags = this.parseTags(tag);
+    return this.postsService.findByUser(
+      this.accessToken(authorization),
+      userId,
       tags,
       parsePostPagination(cursor, limit),
     );
