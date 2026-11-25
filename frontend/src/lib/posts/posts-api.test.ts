@@ -29,7 +29,7 @@ beforeEach(async () => {
     },
   });
 
-  // load a fresh api so local likes and comments start empty
+  // load a fresh copy of the api for each test
   vi.resetModules();
   api = await import('./posts-api');
 });
@@ -44,8 +44,12 @@ function reply(status: number, body?: unknown) {
     ok: status >= 200 && status < 300,
     status,
     json: async () => body,
+    text: async () => (body === undefined ? '' : JSON.stringify(body)),
   });
 }
+
+// the request that was sent: [url, init]
+const sent = (i = 0) => fetchMock.mock.calls[i] as [string, RequestInit];
 
 // keep the fixture close to the shape returned by the posts endpoint
 const row = (changes = {}) => ({
@@ -78,15 +82,16 @@ const formInput = {
 } satisfies PostInput;
 
 describe('authentication', () => {
+  // sends the logged in user token with every request
   it('sends the logged in user token with every request', async () => {
     reply(200, { posts: [], nextCursor: null, hasMore: false });
     await api.getPosts();
     // verify the authorization header uses the logged in user token
-    expect(fetchMock.mock.calls[0][1].headers.Authorization).toBe(
+    expect(new Headers(sent()[1].headers).get('Authorization')).toBe(
       'Bearer mock',
     );
   });
-
+  // reads the token again for each request, so a refreshed token is used
   it('reads the token again for each request, so a refreshed token is used', async () => {
     reply(200, { posts: [], nextCursor: null, hasMore: false });
     await api.getPosts();
@@ -99,38 +104,41 @@ describe('authentication', () => {
     await api.getPosts();
 
     // verify the refreshed token is sent with the next request
-    expect(fetchMock.mock.calls[1][1].headers.Authorization).toBe(
+    expect(new Headers(sent(1)[1].headers).get('Authorization')).toBe(
       'Bearer refreshed',
     );
   });
-
-  it('throws a 401 and sends nothing when nobody is logged in', async () => {
+  // sends no token when nobody is logged in, and passes on the 401
+  it('sends no token when nobody is logged in, and passes on the 401', async () => {
     auth.getSession.mockResolvedValue({ data: { session: null } });
+    reply(401, { message: 'You must be logged in' });
 
-    // verify unauthenticated requests return a 401 error
-    await expect(api.getPosts()).rejects.toMatchObject({ status: 401 });
-    // verify no request is sent when nobody is logged in
-    expect(fetchMock).not.toHaveBeenCalled();
+    // verify the backend's 401 and message reach the caller
+    await expect(api.getPosts()).rejects.toMatchObject({
+      status: 401,
+      message: 'You must be logged in',
+    });
+    // verify no authorization header was sent
+    expect(new Headers(sent()[1].headers).has('Authorization')).toBe(false);
   });
-
+  // passes on a 401 from the backend, like when the token has expired
   it('passes on a 401 from the backend, like when the token has expired', async () => {
     reply(401);
     // verify the backend status is passed through
     await expect(api.getPosts()).rejects.toMatchObject({ status: 401 });
   });
-
+  // never sends a user id, the backend gets it from the token
   it('never sends a user id, the backend gets it from the token', async () => {
     reply(201, row());
     await api.createPost(formInput);
 
     // verify the user id is not sent in the request body
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).not.toHaveProperty(
-      'user_id',
-    );
+    expect(JSON.parse(String(sent()[1].body))).not.toHaveProperty('user_id');
   });
 });
 
 describe('sending requests', () => {
+  // turns a backend error into an apierror with the status
   it('turns a backend error into an ApiError with the status', async () => {
     reply(500);
 
@@ -143,6 +151,7 @@ describe('sending requests', () => {
 });
 
 describe('getPosts', () => {
+  // asks for 20 posts by default and returns the page info
   it('asks for 20 posts by default and returns the page info', async () => {
     reply(200, { posts: [row()], nextCursor: 'next', hasMore: true });
     const page = await api.getPosts();
@@ -156,7 +165,7 @@ describe('getPosts', () => {
     // verify the returned page contains the expected post
     expect(page.posts).toHaveLength(1);
   });
-
+  // sends one tag parameter per tag, plus the cursor and limit
   it('sends one tag parameter per tag, plus the cursor and limit', async () => {
     reply(200, { posts: [], nextCursor: null, hasMore: false });
     await api.getPosts('main', {
@@ -175,7 +184,6 @@ describe('getPosts', () => {
     // verify the requested limit is included
     expect(params.get('limit')).toBe('5');
   });
-
   it('sends every selected filter and requests the following endpoint', async () => {
     reply(200, { posts: [], nextCursor: null, hasMore: false });
     await api.getPosts('following', {
@@ -184,7 +192,6 @@ describe('getPosts', () => {
       timeComplexities: ['O(n)'],
       q: 'hash map',
     });
-
     const url = new URL(String(fetchMock.mock.calls[0][0]), 'http://x');
     expect(url.pathname).toBe('/posts/following');
     expect(url.searchParams.getAll('tag')).toEqual(['Array', 'Hash Table']);
@@ -195,6 +202,7 @@ describe('getPosts', () => {
 });
 
 describe('turning backend rows into posts', () => {
+  // maps the backend fields to the fields the ui uses
   it('maps the backend fields to the fields the ui uses', async () => {
     reply(200, row({ updated_at: '2026-01-02T00:00:00Z' }));
     const post = await api.getPostById('p1');
@@ -217,7 +225,43 @@ describe('turning backend rows into posts', () => {
     expect(post?.createdAt).toBe('2026-01-01T00:00:00Z');
     expect(post?.updatedAt).toBe('2026-01-02T00:00:00Z');
   });
+  // uses the author, like state and comments the backend sends
+  it('uses the author, like state and comments the backend sends', async () => {
+    reply(
+      200,
+      row({
+        author: { id: 'user1', username: 'alice' },
+        likedByMe: true,
+        comments: [
+          {
+            id: 'c1',
+            postId: 'p1',
+            author: { id: 'user2', username: 'bob' },
+            text: 'nice!',
+            likeCount: 4,
+            createdAt: '2026-01-01T00:00:00Z',
+            updatedAt: '2026-01-01T00:00:00Z',
+          },
+        ],
+      }),
+    );
+    const post = await api.getPostById('p1');
 
+    expect(post?.author).toEqual({ id: 'user1', username: 'alice' });
+    expect(post?.likedByMe).toBe(true);
+    expect(post?.comments).toEqual([
+      {
+        id: 'c1',
+        postId: 'p1',
+        author: { id: 'user2', username: 'bob' },
+        content: 'nice!',
+        likeCount: 4,
+        createdAt: '2026-01-01T00:00:00Z',
+        updatedAt: '2026-01-01T00:00:00Z',
+      },
+    ]);
+  });
+  // fills in safe defaults when the backend sends empty fields
   it('fills in safe defaults when the backend sends empty fields', async () => {
     reply(
       200,
@@ -248,23 +292,28 @@ describe('turning backend rows into posts', () => {
     });
     expect(post?.createdAt).toBe('');
     expect(post?.updatedAt).toBeUndefined();
+    // no author, like state or comments sent
+    expect(post?.author).toEqual({ id: 'user1', username: 'user' });
+    expect(post?.likedByMe).toBe(false);
+    expect(post?.comments).toEqual([]);
   });
 });
 
 describe('getPostById', () => {
+  // asks for the post by its id
   it('asks for the post by its id', async () => {
     reply(200, row());
     await api.getPostById('p1');
     // verify the request includes the post id
     expect(String(fetchMock.mock.calls[0][0])).toContain('/posts/p1');
   });
-
+  // returns null when the post is not found
   it('returns null when the post is not found', async () => {
     reply(404);
     // verify a missing post returns null
     expect(await api.getPostById('missing')).toBeNull();
   });
-
+  // throws for any other error
   it('throws for any other error', async () => {
     reply(500);
     // verify unexpected post errors are rejected
@@ -273,42 +322,43 @@ describe('getPostById', () => {
 });
 
 describe('creating, editing and deleting', () => {
+  // creates a post with a post request and only the fields the backend accepts
   it('creates a post with a post request and only the fields the backend accepts', async () => {
     reply(201, row());
     await api.createPost(formInput);
 
     // verify post creation uses the post method
-    expect(fetchMock.mock.calls[0][1].method).toBe('POST');
+    expect(sent()[1].method).toBe('POST');
     // verify post creation sends only accepted fields
-    expect(JSON.parse(fetchMock.mock.calls[0][1].body)).toEqual({
+    expect(JSON.parse(String(sent()[1].body))).toEqual({
       problem_number: 1,
       post_description: 'used a hash map',
       user_solution: 'https://leetcode.com/problems/two-sum',
       user_time_complexity: 'O(n)',
     });
   });
-
+  // edits a post with a patch request
   it('edits a post with a patch request', async () => {
     reply(200, row({ post_description: 'updated description' }));
     const updated = await api.updatePost('p1', formInput);
 
     // verify post updates use the patch method
-    expect(fetchMock.mock.calls[0][1].method).toBe('PATCH');
+    expect(sent()[1].method).toBe('PATCH');
     // verify the update request includes the post id
     expect(String(fetchMock.mock.calls[0][0])).toContain('/posts/p1');
     // verify the updated description is returned
     expect(updated.description).toBe('updated description');
   });
-
+  // deletes a post with a delete request and no response body
   it('deletes a post with a delete request and no response body', async () => {
     reply(204);
 
     // verify successful deletion resolves without a value
     await expect(api.deletePost('p1')).resolves.toBeUndefined();
     // verify post deletion uses the delete method
-    expect(fetchMock.mock.calls[0][1].method).toBe('DELETE');
+    expect(sent()[1].method).toBe('DELETE');
   });
-
+  // throws a 409 when the post has likes or comments in the database
   it('throws a 409 when the post has likes or comments in the database', async () => {
     reply(409);
     // verify deletion conflicts are rejected with the backend status
@@ -316,95 +366,73 @@ describe('creating, editing and deleting', () => {
   });
 });
 
-describe('local likes', () => {
-  it('adds one like, then takes it away on the second click', async () => {
-    reply(200, row({ like_count: 2 }));
-    const liked = await api.toggleLike('p1');
-    // verify the first click marks the post as liked
-    expect(liked.likedByMe).toBe(true);
-    // verify the first click increases the like count
-    expect(liked.likeCount).toBe(3);
+describe('likes', () => {
+  // likes a post with post and unlikes it with delete
+  it('likes a post with POST and unlikes it with DELETE', async () => {
+    reply(201, {});
+    await api.setLiked('post', 'p1', true);
+    expect(sent()[0]).toContain('/posts/p1/likes');
+    expect(sent()[1].method).toBe('POST');
 
-    reply(200, row({ like_count: 2 }));
-    const unliked = await api.toggleLike('p1');
-    // verify the second click removes the like
-    expect(unliked.likedByMe).toBe(false);
-    // verify the second click restores the like count
-    expect(unliked.likeCount).toBe(2);
+    reply(204);
+    await api.setLiked('post', 'p1', false);
+    expect(sent(1)[1].method).toBe('DELETE');
   });
-
-  // local likes should be keyed by post id rather than shared across posts
-  it('only likes the post that was clicked', async () => {
-    reply(200, row({ post_id: 'p1' }));
-    await api.toggleLike('p1');
-
-    reply(200, row({ post_id: 'p2', like_count: 0 }));
-    const other = await api.getPostById('p2');
-    // verify liking one post does not affect another post
-    expect(other?.likedByMe).toBe(false);
-    // verify the other post keeps its own like count
-    expect(other?.likeCount).toBe(0);
+  // uses the comment route for comment likes
+  it('uses the comment route for comment likes', async () => {
+    reply(201, {});
+    await api.setLiked('comment', 'c1', true);
+    expect(sent()[0]).toContain('/comments/c1/likes');
   });
-
-  it('throws a 404 when the post does not exist', async () => {
-    reply(404);
-    // verify liking a missing post is rejected with a 404
-    await expect(api.toggleLike('missing')).rejects.toMatchObject({
-      status: 404,
+  // passes on a 409 when it was already liked
+  it('passes on a 409 when it was already liked', async () => {
+    reply(409, { message: 'Post already liked' });
+    await expect(api.setLiked('post', 'p1', true)).rejects.toMatchObject({
+      status: 409,
     });
+  });
+  // asks whether the logged in user liked it
+  it('asks whether the logged in user liked it', async () => {
+    reply(200, { liked: true });
+    expect(await api.hasLiked('comment', 'c1')).toBe(true);
+    expect(sent()[0]).toContain('/comments/c1/likes/me');
   });
 });
 
-describe('local comments', () => {
-  // comments are kept locally because this api currently has no comment endpoint
-  it('adds a comment with the logged in user as the author', async () => {
-    const comment = await api.addComment('p1', 'nice work!');
+describe('comments', () => {
+  // adds a comment with only post_id and comment_text
+  it('adds a comment with only post_id and comment_text', async () => {
+    reply(201, {});
+    await api.addComment('p1', 'nice work!');
 
-    // verify the comment keeps its post id
-    expect(comment.postId).toBe('p1');
-    // verify the comment keeps its content
-    expect(comment.content).toBe('nice work!');
-    // verify the comment uses the logged in user as its author
-    expect(comment.author).toMatchObject({
-      id: MOCK_CURRENT_USER.id,
-      username: MOCK_CURRENT_USER.username,
+    expect(sent()[0]).toContain('/comments');
+    expect(sent()[1].method).toBe('POST');
+    // verify the user id is not sent, the backend gets it from the token
+    expect(JSON.parse(String(sent()[1].body))).toEqual({
+      post_id: 'p1',
+      comment_text: 'nice work!',
     });
   });
+  // edits a comment with a patch request
+  it('edits a comment with a patch request', async () => {
+    reply(200, {});
+    await api.updateComment('c1', 'edited');
 
-  it('falls back to a default name when nobody is logged in', async () => {
-    auth.getUser.mockResolvedValue({ data: { user: null } });
-
-    const comment = await api.addComment('p1', 'hello');
-    // verify comments use a default author when nobody is logged in
-    expect(comment.author).toMatchObject({ id: '', username: 'me' });
-  });
-
-  it('falls back to a default name when the user has no username', async () => {
-    auth.getUser.mockResolvedValue({
-      data: { user: { id: 'user1', user_metadata: {} } },
+    expect(sent()[0]).toContain('/comments/c1');
+    expect(sent()[1].method).toBe('PATCH');
+    expect(JSON.parse(String(sent()[1].body))).toEqual({
+      comment_text: 'edited',
     });
-
-    const comment = await api.addComment('p1', 'hello');
-    // verify comments use a default name when the username is missing
-    expect(comment.author).toMatchObject({ id: 'user1', username: 'me' });
   });
+  // deletes a comment, and passes on a 409 when it has likes
+  it('deletes a comment, and passes on a 409 when it has likes', async () => {
+    reply(204);
+    await expect(api.deleteComment('c1')).resolves.toBeUndefined();
+    expect(sent()[1].method).toBe('DELETE');
 
-  it('shows the comments on the post in the order they were written', async () => {
-    await api.addComment('p1', 'first');
-    await api.addComment('p1', 'second');
-
-    reply(200, row());
-    const post = await api.getPostById('p1');
-    // verify comments stay in the order they were written
-    expect(post?.comments.map((c) => c.content)).toEqual(['first', 'second']);
-  });
-
-  it('only shows a comment on the post it was written for', async () => {
-    await api.addComment('p1', 'first');
-
-    reply(200, row({ post_id: 'p2' }));
-    const other = await api.getPostById('p2');
-    // verify comments stay associated with their original post
-    expect(other?.comments).toEqual([]);
+    reply(409, { message: 'Comment has related likes that prevent deletion' });
+    await expect(api.deleteComment('c1')).rejects.toMatchObject({
+      status: 409,
+    });
   });
 });

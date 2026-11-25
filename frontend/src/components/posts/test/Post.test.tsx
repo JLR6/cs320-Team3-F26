@@ -9,6 +9,7 @@ import { makePost } from '@/lib/test-utils';
 const user = userEvent.setup();
 
 describe('PostCard', () => {
+  // logged out: links to the post, like is disabled, no owner menu
   it('logged out: links to the post, like is disabled, no owner menu', () => {
     render(
       <PostCard
@@ -28,7 +29,27 @@ describe('PostCard', () => {
     expect(screen.getByRole('button', { name: '3' })).toBeDisabled();
     expect(screen.queryByRole('button', { name: 'Post options' })).toBeNull();
   });
+  // locks a signed-in user's heart while its request is in flight
+  it('disables a pending like', async () => {
+    const onLike = vi.fn();
+    render(
+      <PostCard
+        post={makePost()}
+        isOwner={false}
+        canInteract={true}
+        isLiking
+        onLike={onLike}
+        onEdit={vi.fn()}
+        onDelete={vi.fn()}
+      />,
+    );
 
+    const like = screen.getByRole('button', { name: '3' });
+    expect(like).toBeDisabled();
+    await user.click(like);
+    expect(onLike).not.toHaveBeenCalled();
+  });
+  // owner: shows (edited), like and the edit/delete menu call their handlers
   it('owner: shows (edited), like and the Edit/Delete menu call their handlers', async () => {
     const post = makePost({
       likedByMe: true,

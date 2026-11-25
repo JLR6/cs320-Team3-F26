@@ -1,5 +1,5 @@
-// Data layer for posts. Talks to the backend Posts API (see backend README).
-// Likes, comments and following have no backend routes yet, so they stay local mocks.
+// Data layer for posts, likes and comments. Talks to the backend (see backend README).
+// Following has no backend routes yet, so the "following" feed stays empty.
 import type {
   Difficulty,
   Problem,
@@ -8,12 +8,23 @@ import type {
   PostInput,
   FeedType,
 } from '@/types/post';
-import { createClient } from '@/lib/supabase/client'; // ASSUMPTION: adjust to your helper path
+import { apiFetch, ApiError } from '@/lib/api/client';
 
-// Backend base URL, e.g. http://localhost:3001 (set in .env.local)
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
+// Re-exported so existing `import { ApiError } from '@/lib/posts/posts-api'` keeps working
+export { ApiError };
 
 // ---------- Types for what the backend sends ----------
+
+// Comment as the post_details view embeds it (already includes the username)
+type CommentRow = {
+  id: string;
+  postId: string;
+  author: { id: string; username: string | null };
+  text: string;
+  likeCount: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
 
 // One row from the backend (matches the migrations)
 type PostRow = {
@@ -27,6 +38,9 @@ type PostRow = {
   user_space_complexity?: string | null; // TODO: not sent yet
   created_at: string | null;
   updated_at: string | null;
+  author?: { id: string; username: string | null };
+  likedByMe?: boolean;
+  comments?: CommentRow[];
   problemName?: string | null;
   difficulty?: Difficulty | null;
   problemLink?: string | null;
@@ -51,46 +65,24 @@ export type PostPage = {
   hasMore: boolean;
 };
 
-// An error that keeps the HTTP status so the UI can react (401, 404, 409...)
-export class ApiError extends Error {
-  status: number;
-  constructor(status: number, message: string) {
-    super(message);
-    this.status = status;
-  }
-}
-
 // ---------- Helpers ----------
 
-// Send a request with the logged-in user's token
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const supabase = createClient();
-  const { data } = await supabase.auth.getSession();
-  const token = data.session?.access_token;
-  if (!token) throw new ApiError(401, 'Not logged in');
-
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${token}`,
-      ...init.headers,
-    },
-  });
-  if (!res.ok) throw new ApiError(res.status, `Request failed (${res.status})`);
-  if (res.status === 204) return undefined as T; // DELETE has no body
-  return res.json() as Promise<T>;
+// Backend comment -> the PostComment shape the UI uses
+function toComment(c: CommentRow): PostComment {
+  return {
+    id: c.id,
+    postId: c.postId,
+    author: { id: c.author.id, username: c.author.username ?? 'user' },
+    content: c.text,
+    likeCount: c.likeCount ?? 0,
+    createdAt: c.createdAt ?? '',
+    updatedAt: c.updatedAt ?? undefined,
+  };
 }
-
-// Local-only state for features the backend does not have yet
-const likedIds = new Set<string>();
-const localComments = new Map<string, PostComment[]>();
-const uid = () => Math.random().toString(36).slice(2, 10);
 
 // Backend row -> the Post shape the UI uses.
 // If a field name below doesn't match types/post.ts, fix it here only.
 function toPost(row: PostRow): Post {
-  const liked = likedIds.has(row.post_id);
   const problem: Problem = {
     number: row.problem_number,
     title:
@@ -109,8 +101,7 @@ function toPost(row: PostRow): Post {
   };
   return {
     id: row.post_id,
-    // TODO: backend only sends user_id. Ask for the username to be included.
-    author: { id: row.user_id, username: 'user' },
+    author: { id: row.user_id, username: row.author?.username ?? 'user' },
     problem,
     problemNumber: problem.number,
     problemName: problem.title,
@@ -119,9 +110,9 @@ function toPost(row: PostRow): Post {
     description: row.post_description ?? '',
     solution: row.user_solution ?? '',
     timeComplexity: row.user_time_complexity ?? '',
-    likeCount: (row.like_count ?? 0) + (liked ? 1 : 0), // local like added on top
-    likedByMe: liked,
-    comments: localComments.get(row.post_id) ?? [],
+    likeCount: row.like_count ?? 0,
+    likedByMe: row.likedByMe ?? false,
+    comments: (row.comments ?? []).map(toComment),
     createdAt: row.created_at ?? '',
     updatedAt: row.updated_at ?? undefined,
   };
@@ -140,7 +131,7 @@ function toBody(input: PostInput) {
 
 // ---------- Posts ----------
 
-type GetPostsOptions = {
+export type GetPostsOptions = {
   cursor?: string | null;
   limit?: number;
   tags?: string[];
@@ -178,7 +169,7 @@ export async function getPosts(
   if (cursor) params.set('cursor', cursor);
 
   const path = feed === 'following' ? '/posts/following' : '/posts';
-  const page = await request<{
+  const page = await apiFetch<{
     posts: PostRow[];
     nextCursor: string | null;
     hasMore: boolean;
@@ -195,14 +186,14 @@ export async function getPosts(
 // NEW: every available problem tag (from the tags table), independent of posts.
 // Backend: GET /problems/tags -> [{ id, name }]. The search bar only needs the names.
 export async function getTags(): Promise<string[]> {
-  const tags = await request<{ id: number; name: string }[]>('/problems/tags');
+  const tags = await apiFetch<{ id: number; name: string }[]>('/problems/tags');
   return tags.map((tag) => tag.name);
 }
 
 // One post by id, or null if it doesn't exist (or isn't yours to see)
 export async function getPostById(id: string): Promise<Post | null> {
   try {
-    return toPost(await request<PostRow>(`/posts/${id}`));
+    return toPost(await apiFetch<PostRow>(`/posts/${id}`));
   } catch (e) {
     if (e instanceof ApiError && e.status === 404) return null;
     throw e;
@@ -210,7 +201,7 @@ export async function getPostById(id: string): Promise<Post | null> {
 }
 
 export async function createPost(input: PostInput): Promise<Post> {
-  const row = await request<PostRow>('/posts', {
+  const row = await apiFetch<PostRow>('/posts', {
     method: 'POST',
     body: JSON.stringify(toBody(input)),
   });
@@ -218,7 +209,7 @@ export async function createPost(input: PostInput): Promise<Post> {
 }
 
 export async function updatePost(id: string, input: PostInput): Promise<Post> {
-  const row = await request<PostRow>(`/posts/${id}`, {
+  const row = await apiFetch<PostRow>(`/posts/${id}`, {
     method: 'PATCH',
     body: JSON.stringify(toBody(input)),
   });
@@ -227,34 +218,64 @@ export async function updatePost(id: string, input: PostInput): Promise<Post> {
 
 // Throws ApiError(409) if the post has likes or comments in the database
 export async function deletePost(id: string): Promise<void> {
-  await request<void>(`/posts/${id}`, { method: 'DELETE' });
+  await apiFetch<void>(`/posts/${id}`, { method: 'DELETE' });
 }
 
-// ---------- Still mocked (no backend routes yet) ----------
+// ---------- Likes (posts and comments are liked the same way) ----------
 
-export async function toggleLike(id: string): Promise<Post> {
-  if (likedIds.has(id)) likedIds.delete(id);
-  else likedIds.add(id);
-  const post = await getPostById(id);
-  if (!post) throw new ApiError(404, 'Post not found');
-  return post;
+export type LikeTarget = 'post' | 'comment';
+
+// /posts/:id/likes or /comments/:id/likes
+const likesPath = (target: LikeTarget, id: string) => `/${target}s/${id}/likes`;
+
+// Like (POST) or unlike (DELETE) as the logged-in user.
+// Backend answers 409 if already liked, 404 if it wasn't liked.
+export async function setLiked(
+  target: LikeTarget,
+  id: string,
+  liked: boolean,
+): Promise<void> {
+  await apiFetch<void>(likesPath(target, id), {
+    method: liked ? 'POST' : 'DELETE',
+  });
 }
+
+// Has the logged-in user liked it? Only needed for comments,
+// since posts already come with likedByMe.
+export async function hasLiked(
+  target: LikeTarget,
+  id: string,
+): Promise<boolean> {
+  const res = await apiFetch<{ liked: boolean }>(`${likesPath(target, id)}/me`);
+  return res.liked;
+}
+
+// ---------- Comments ----------
+// These return nothing: the backend's response has no username, so the
+// hooks reload the post afterwards to get comments with usernames.
 
 export async function addComment(
   postId: string,
   content: string,
-): Promise<PostComment> {
-  const { data } = await createClient().auth.getUser();
-  const comment: PostComment = {
-    id: uid(),
-    postId,
-    author: {
-      id: data.user?.id ?? '',
-      username: data.user?.user_metadata?.username ?? 'me',
-    },
-    content,
-    createdAt: new Date().toISOString(),
-  };
-  localComments.set(postId, [...(localComments.get(postId) ?? []), comment]);
-  return comment;
+): Promise<void> {
+  await apiFetch('/comments', {
+    method: 'POST',
+    body: JSON.stringify({ post_id: postId, comment_text: content }),
+  });
+}
+
+// Only the author can edit. 404 = not found or not theirs.
+export async function updateComment(
+  commentId: string,
+  content: string,
+): Promise<void> {
+  await apiFetch(`/comments/${commentId}`, {
+    method: 'PATCH',
+    body: JSON.stringify({ comment_text: content }),
+  });
+}
+
+// Only the author can delete. 409 = the comment still has likes.
+export async function deleteComment(commentId: string): Promise<void> {
+  await apiFetch<void>(`/comments/${commentId}`, { method: 'DELETE' });
 }

@@ -1,12 +1,11 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { format } from 'date-fns';
 import { ChevronLeft, ExternalLink, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { errorMessage } from '@/lib/utils';
 import { isHttpUrl } from '@/lib/posts/post-utils';
 import {
@@ -14,17 +13,11 @@ import {
   formatCount,
   postTags,
   problemTitle,
-  timeAgo,
 } from '@/lib/utils';
-import {
-  addComment,
-  deletePost,
-  getPostById,
-  toggleLike,
-  updatePost,
-} from '@/lib/posts/posts-api';
 import { useCurrentUser } from '@/lib/client-utils';
-import type { Post, PostInput } from '@/types/post';
+import { usePost, usePostActions, usePostLike } from '@/hooks/use-posts';
+import type { PostInput } from '@/types/post';
+import { CommentSection } from './CommentSection';
 import { DeletePostDialog } from './DeletePostDialog';
 import { LikeButton } from './LikeButton';
 import { PostFormDialog } from './PostFormDialog';
@@ -34,43 +27,39 @@ import { UserAvatar } from './presentation/UserAvatar';
 export function PostDetail({ id }: { id: string }) {
   const router = useRouter();
   const user = useCurrentUser();
-  const [post, setPost] = useState<Post | null | undefined>(undefined); // undefined = loading, null = not found
-  const [error, setError] = useState<string | null>(null);
-  const [text, setText] = useState('');
   const [editing, setEditing] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    getPostById(id)
-      .then(setPost)
-      .catch((e) => {
-        setPost(null);
-        setError(errorMessage(e, "Couldn't load this post"));
-      });
-  }, [id]);
+  // React Query loads the post; data is null when it doesn't exist
+  const query = usePost(id);
+  const post = query.data;
+  const { update, remove } = usePostActions();
+  const like = usePostLike();
 
-  if (post === undefined)
+  if (query.isPending)
     return (
       <p className="p-10 text-center text-sm text-muted-foreground">
         Loading...
       </p>
     );
-  if (post === null)
+  if (query.isError || !post)
     return (
       <p className="p-10 text-center text-sm text-muted-foreground">
-        {error ?? "This post doesn't exist."}
+        {query.isError
+          ? errorMessage(query.error, "Couldn't load this post")
+          : "This post doesn't exist."}
       </p>
     );
 
   // The form dialog shows errors, so this one lets them pass through
   async function handleEdit(input: PostInput) {
-    setPost(await updatePost(id, input));
+    await update.mutateAsync({ id, input });
     toast.success('Post updated');
   }
 
   async function handleDelete() {
     try {
-      await deletePost(id);
+      await remove.mutateAsync(id);
       toast.success('Post deleted');
       router.push('/feed');
     } catch (e) {
@@ -79,26 +68,13 @@ export function PostDetail({ id }: { id: string }) {
     }
   }
 
-  async function handleLike() {
-    try {
-      setPost(await toggleLike(id));
-    } catch (e) {
-      toast.error(errorMessage(e, "Couldn't update the like"));
-    }
-  }
-
-  async function handleComment() {
-    try {
-      const c = await addComment(id, text.trim());
-      setPost((p) => (p ? { ...p, comments: [...p.comments, c] } : p));
-      setText('');
-    } catch (e) {
-      toast.error(errorMessage(e, "Couldn't post the comment"));
-    }
+  function handleLike() {
+    like.mutate(post!, {
+      onError: (e) => toast.error(errorMessage(e, "Couldn't update the like")),
+    });
   }
 
   const isOwner = post.author.id === user?.id;
-  const newestFirst = [...post.comments].reverse();
 
   return (
     <div className="mx-auto w-full max-w-3xl space-y-4 p-4">
@@ -179,46 +155,13 @@ export function PostDetail({ id }: { id: string }) {
           count={post.likeCount}
           liked={post.likedByMe}
           disabled={!user}
+          pending={like.isPending}
           onClick={handleLike}
         />
       </div>
 
-      {/* New comment */}
-      <div className="rounded-xl border p-3">
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={user ? 'Type comment here...' : 'Log in to comment'}
-          disabled={!user}
-          rows={2}
-          className="resize-none border-0 shadow-none focus-visible:ring-0"
-        />
-        <div className="flex justify-end">
-          <Button
-            size="sm"
-            disabled={!user || !text.trim()}
-            onClick={handleComment}
-          >
-            Comment
-          </Button>
-        </div>
-      </div>
-
-      {/* Comments (newest first) */}
-      {newestFirst.map((c) => (
-        <div key={c.id} className="flex gap-3">
-          <UserAvatar name={c.author.username} className="size-8" />
-          <div className="flex-1 rounded-xl bg-muted/60 p-3 text-sm">
-            <p>
-              <span className="font-semibold">{c.author.username}</span>{' '}
-              <span className="text-xs text-muted-foreground">
-                • {timeAgo(c.createdAt)}
-              </span>
-            </p>
-            <p className="mt-1">{c.content}</p>
-          </div>
-        </div>
-      ))}
+      {/* New comment box + comments (with likes, edit and delete) */}
+      <CommentSection postId={id} comments={post.comments} userId={user?.id} />
 
       <PostFormDialog
         open={editing}

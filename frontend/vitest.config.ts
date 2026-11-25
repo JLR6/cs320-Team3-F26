@@ -16,7 +16,7 @@ export default defineConfig({
         // for explicitly visual components, unit tests only prove if they render or not which isn't valuable
         'src/components/ui/**/*.{ts,tsx}', // Generated components, doesn't make sense to test them
         'src/components/**/presentation/**/*.{ts,tsx}', // presentation components don't have anything worth testing as they are purely visual
-        'src/app/providers.tsx', // tanstack boilerplate, not worth testing
+        'src/app/providers.tsx', // provider boilerplate, not worth testing
         'src/components/ThemeProvider.tsx', // theme boilerplate, not worth testing
         // these are components that are more worth testing visually, not through unit tests
         'src/components/app-header.tsx',
@@ -30,6 +30,7 @@ export default defineConfig({
         'src/app/callback/**/*.{ts,tsx}', // auth callback page is just a redirect and will be tested through e2e tests
         /** TODO not covered in this pr atm **/
         'src/lib/routes.ts', // nothing really here to test besides checking url when going to distinct posts
+        'src/components/searchBar.tsx', // TODO needs unit tests once done with backend integration
         'src/components/auth/ForgotPasswordForm.tsx', // not a part of this PR, can add after Elizabeth's PR is merged
         /** ------------------ uncovered ----------------  **/
         'src/types/**/*.{ts,tsx}', // types are not worth testing
